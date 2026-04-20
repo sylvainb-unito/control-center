@@ -18,6 +18,17 @@
   flex: 1;
   color: var(--fg);
 }
+.name {
+  flex: 1;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branchSub {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
 .sha {
   color: var(--fg-dim);
   font-size: 11px;

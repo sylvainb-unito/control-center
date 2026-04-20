@@ -41,9 +41,15 @@ export const UI = () => {
         {data?.repos.map((r) => (
           <div key={r.path} className={s.repo}>
             <div className={s.repoHead}>{r.name}</div>
-            {r.worktrees.map((w) => (
+            {r.worktrees.map((w) => {
+              const folder = w.path.split('/').pop() ?? w.path;
+              const branchDiffers = folder !== w.branch && folder !== w.branch.replace(/\//g, '-');
+              return (
               <div key={w.path} className="panel-row">
-                <span className={s.branch}>{w.branch}</span>
+                <span className={s.name} title={w.path}>
+                  {folder}
+                  {branchDiffers && <span className={s.branchSub}> ({w.branch})</span>}
+                </span>
                 <span className={s.sha}>{w.head}</span>
                 <span className={s.badges}>
                   {w.mergedToMain && <span className="badge badge--success">merged</span>}
@@ -57,7 +63,8 @@ export const UI = () => {
                   delete
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         ))}
       </div>
