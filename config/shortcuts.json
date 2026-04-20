@@ -1,0 +1,41 @@
+[
+  {
+    "id": "asana",
+    "label": "Asana",
+    "logo": "asana.svg",
+    "links": [
+      { "label": "My tasks", "url": "https://app.asana.com/0/me" },
+      { "label": "Inbox", "url": "https://app.asana.com/0/inbox" }
+    ]
+  },
+  {
+    "id": "stripe",
+    "label": "Stripe",
+    "logo": "stripe.svg",
+    "links": [{ "label": "Dashboard", "url": "https://dashboard.stripe.com" }]
+  },
+  {
+    "id": "snowflake",
+    "label": "Snowflake",
+    "logo": "snowflake.svg",
+    "links": [{ "label": "Worksheet", "url": "https://app.snowflake.com" }]
+  },
+  {
+    "id": "dbt",
+    "label": "dbt",
+    "logo": "dbt.svg",
+    "links": [{ "label": "Cloud", "url": "https://cloud.getdbt.com" }]
+  },
+  {
+    "id": "segment",
+    "label": "Segment",
+    "logo": "segment.svg",
+    "links": [{ "label": "App", "url": "https://app.segment.com" }]
+  },
+  {
+    "id": "amplitude",
+    "label": "Amplitude",
+    "logo": "amplitude.svg",
+    "links": [{ "label": "App", "url": "https://app.amplitude.com" }]
+  }
+]

@@ -1,0 +1,65 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(255, 113, 206, 0.08);
+  border: 1px solid rgba(255, 113, 206, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--fg);
+  text-decoration: none;
+}
+.tile:hover {
+  background: rgba(1, 205, 254, 0.15);
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+.logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.placeholder {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--pink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Orbitron", sans-serif;
+  font-size: 14px;
+  color: var(--pink);
+  text-shadow: var(--glow-pink);
+}
+.label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-align: center;
+}
+.popover {
+  position: absolute;
+  background: var(--bg-mid);
+  border: 1px solid var(--pink);
+  box-shadow: var(--glow-pink);
+  padding: 6px;
+  z-index: 50;
+  min-width: 140px;
+}
+.popoverItem {
+  display: block;
+  padding: 4px 8px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 12px;
+}
+.popoverItem:hover {
+  background: rgba(1, 205, 254, 0.15);
+  color: var(--cyan);
+}
