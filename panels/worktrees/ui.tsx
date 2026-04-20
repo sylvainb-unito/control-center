@@ -21,10 +21,12 @@ export const UI = () => {
   });
   const [pending, setPending] = useState<Worktree | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [partial, setPartial] = useState<DeleteResponse | null>(null);
 
   const closePending = () => {
     setPending(null);
     setRemoveError(null);
+    setPartial(null);
   };
 
   const remove = useMutation({
@@ -33,9 +35,13 @@ export const UI = () => {
         method: 'DELETE',
         body: JSON.stringify(args),
       }),
-    onSuccess: () => {
-      closePending();
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: QK });
+      if (data.branchDeleteError) {
+        setPartial(data);
+      } else {
+        closePending();
+      }
     },
     onError: (err) => {
       setRemoveError((err as Error).message);
@@ -102,7 +108,20 @@ export const UI = () => {
             onKeyDown={(e) => e.stopPropagation()}
             role="document"
           >
-            {(() => {
+            {partial ? (
+              <>
+                <p className={s.partialOk}>✓ Folder removed: <code>{partial.removed}</code></p>
+                <p className={s.partialWarn}>
+                  ⚠ Branch could not be deleted: {partial.branchDeleteError}
+                </p>
+                <div className={s.actions}>
+                  <button type="button" className={s.actionBtn} onClick={closePending}>
+                    close
+                  </button>
+                </div>
+              </>
+            ) : (
+            (() => {
               const state: WorktreeState = classifyWorktreeState(pending);
               const pillClass: Record<WorktreeState, string> = {
                 merged: s.statePillMerged,
@@ -182,7 +201,8 @@ export const UI = () => {
                   </div>
                 </>
               );
-            })()}
+            })()
+            )}
           </div>
         </div>
       )}
