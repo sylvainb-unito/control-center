@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('@cc/server/lib/git', () => ({
   listWorktrees: vi.fn(async () => [{ name: 'proj', path: '/p', worktrees: [] }]),
-  removeWorktree: vi.fn(async () => {}),
+  removeWorktree: vi.fn(async () => ({ branchDeleted: null })),
   GitError: class GitError extends Error {
     code: string;
     constructor(code: string, message: string) {
@@ -42,7 +42,7 @@ describe('worktrees api', () => {
     });
   });
 
-  test('DELETE / success returns removed path', async () => {
+  test('DELETE / success returns removed path and null branchDeleted', async () => {
     const { api } = await import('./api');
     const res = await api.request('/', {
       method: 'DELETE',
@@ -52,7 +52,52 @@ describe('worktrees api', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       ok: true,
-      data: { removed: '/p/.worktrees/x' },
+      data: { removed: '/p/.worktrees/x', branchDeleted: null },
+    });
+  });
+
+  test('DELETE / forwards deleteBranch and returns branchDeleted on success', async () => {
+    const git = await import('@cc/server/lib/git');
+    (git.removeWorktree as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      branchDeleted: 'feat/x',
+    });
+    const { api } = await import('./api');
+    const res = await api.request('/', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/p/.worktrees/x', force: false, deleteBranch: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      data: { removed: '/p/.worktrees/x', branchDeleted: 'feat/x' },
+    });
+    expect(git.removeWorktree).toHaveBeenLastCalledWith('/p/.worktrees/x', {
+      force: false,
+      deleteBranch: true,
+    });
+  });
+
+  test('DELETE / returns 200 with branchDeleteError on partial success', async () => {
+    const git = await import('@cc/server/lib/git');
+    (git.removeWorktree as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      branchDeleted: null,
+      branchDeleteError: 'branch not found',
+    });
+    const { api } = await import('./api');
+    const res = await api.request('/', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/p/.worktrees/x', deleteBranch: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      data: {
+        removed: '/p/.worktrees/x',
+        branchDeleted: null,
+        branchDeleteError: 'branch not found',
+      },
     });
   });
 });
