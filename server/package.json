@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./envelope": "./src/envelope.ts",
+    "./lib/git": "./src/lib/git.ts",
+    "./lib/gh": "./src/lib/gh.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.json",

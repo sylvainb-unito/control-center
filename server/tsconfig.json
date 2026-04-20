@@ -2,11 +2,10 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": false
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src/**/*.ts", "../panels/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
 }

@@ -1,0 +1,25 @@
+{
+  "name": "@cc/panel-worktrees",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ui": "./ui.tsx",
+    "./api": "./api.ts",
+    "./meta": "./meta.ts",
+    "./types": "./types.ts"
+  },
+  "scripts": { "test": "vitest run" },
+  "dependencies": {
+    "@cc/server": "workspace:*",
+    "@cc/shared": "workspace:*",
+    "@tanstack/react-query": "^5.62.2",
+    "hono": "^4.6.14",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

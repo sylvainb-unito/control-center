@@ -1,5 +1,6 @@
 import type { Hono } from 'hono';
+import { api as worktreesApi } from '../../panels/worktrees/api';
 
-export function registerRoutes(_app: Hono): void {
-  // panel routes registered in later tasks
+export function registerRoutes(app: Hono): void {
+  app.route('/api/worktrees', worktreesApi);
 }

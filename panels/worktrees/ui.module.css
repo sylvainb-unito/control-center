@@ -1,0 +1,86 @@
+.repo {
+  margin-bottom: 14px;
+}
+.repoHead {
+  font-family: "Orbitron", sans-serif;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  font-size: 13px;
+  padding: 6px 0;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.branch {
+  flex: 1;
+  color: var(--fg);
+}
+.sha {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+.badges {
+  display: flex;
+  gap: 4px;
+}
+.del {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.del:hover {
+  background: var(--danger);
+  color: var(--bg-deep);
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modalBody {
+  background: var(--bg-mid);
+  border: 2px solid var(--pink);
+  box-shadow: var(--glow-pink);
+  padding: 20px;
+  max-width: 500px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+.cancel {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--fg-dim);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.confirm {
+  background: var(--pink);
+  color: var(--bg-deep);
+  border: 1px solid var(--pink);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.force {
+  background: var(--danger);
+  color: var(--bg-deep);
+  border: 1px solid var(--danger);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
