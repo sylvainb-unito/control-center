@@ -48,6 +48,18 @@ body::before {
   margin: 0 auto;
   padding: 28px;
 }
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(11, 2, 33, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 113, 206, 0.35);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
 .app-header {
   margin-bottom: 28px;
 }

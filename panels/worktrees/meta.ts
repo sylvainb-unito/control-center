@@ -4,5 +4,5 @@ export const meta: PanelMeta = {
   id: 'worktrees',
   title: 'Worktrees',
   order: 10,
-  defaultSize: 'lg',
+  defaultSize: 'md',
 };

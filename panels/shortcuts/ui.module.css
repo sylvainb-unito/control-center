@@ -1,20 +1,26 @@
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 12px;
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.tileWrap {
+  position: relative;
 }
 .tile {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px;
+  gap: 8px;
+  padding: 5px 10px;
   background: rgba(255, 113, 206, 0.08);
   border: 1px solid rgba(255, 113, 206, 0.35);
   border-radius: 4px;
   cursor: pointer;
   color: var(--fg);
   text-decoration: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1;
 }
 .tile:hover {
   background: rgba(1, 205, 254, 0.15);
@@ -22,35 +28,44 @@
   box-shadow: var(--glow-cyan);
 }
 .logo {
-  width: 40px;
-  height: 40px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
 }
 .placeholder {
-  width: 40px;
-  height: 40px;
+  width: 22px;
+  height: 22px;
   border: 1px solid var(--pink);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: "Orbitron", sans-serif;
-  font-size: 14px;
+  font-size: 10px;
   color: var(--pink);
   text-shadow: var(--glow-pink);
 }
 .label {
-  font-size: 11px;
   color: var(--fg-dim);
-  text-align: center;
+}
+.tile:hover .label {
+  color: var(--cyan);
+}
+.caret {
+  color: var(--fg-dim);
+  font-size: 10px;
+  margin-left: 2px;
 }
 .popover {
   position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
   background: var(--bg-mid);
   border: 1px solid var(--pink);
   box-shadow: var(--glow-pink);
   padding: 6px;
   z-index: 50;
   min-width: 140px;
+  border-radius: 4px;
 }
 .popoverItem {
   display: block;
@@ -58,8 +73,14 @@
   color: var(--fg);
   text-decoration: none;
   font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  border-radius: 3px;
 }
 .popoverItem:hover {
   background: rgba(1, 205, 254, 0.15);
   color: var(--cyan);
+}
+.error {
+  color: var(--danger);
+  font-size: 12px;
 }

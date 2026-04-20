@@ -51,10 +51,11 @@ function Tile({ shortcut }: { shortcut: Shortcut }) {
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className={s.tileWrap}>
       <button type="button" className={s.tile} onClick={() => setOpenPopover((o) => !o)}>
         <Logo shortcut={shortcut} />
         <span className={s.label}>{shortcut.label}</span>
+        <span className={s.caret}>▾</span>
       </button>
       {openPopover && (
         <div className={s.popover}>
@@ -76,30 +77,19 @@ function Tile({ shortcut }: { shortcut: Shortcut }) {
 }
 
 export const UI = () => {
-  const { data, isLoading, error, refetch } = useQuery<Shortcut[]>({
+  const { data, error } = useQuery<Shortcut[]>({
     queryKey: ['shortcuts'],
     queryFn: () => fetchJson<Shortcut[]>('/api/shortcuts'),
   });
 
+  if (error) return <div className={s.error}>shortcuts: {(error as Error).message}</div>;
+  if (!data) return null;
+
   return (
-    <div className="panel">
-      <div className="panel-header">
-        Shortcuts
-        <button type="button" className="panel-refresh" onClick={() => refetch()}>
-          refresh
-        </button>
-      </div>
-      <div className="panel-body">
-        {isLoading && <p style={{ color: 'var(--fg-dim)' }}>loading…</p>}
-        {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
-        {data && (
-          <div className={s.grid}>
-            {data.map((sh) => (
-              <Tile key={sh.id} shortcut={sh} />
-            ))}
-          </div>
-        )}
-      </div>
+    <div className={s.bar}>
+      {data.map((sh) => (
+        <Tile key={sh.id} shortcut={sh} />
+      ))}
     </div>
   );
 };

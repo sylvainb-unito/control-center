@@ -2,6 +2,7 @@ import type { Hono } from 'hono';
 import type { FC } from 'react';
 
 export type PanelSize = 'sm' | 'md' | 'lg';
+export type PanelPlacement = 'grid' | 'top-bar';
 
 export type PanelMeta = {
   id: string;
@@ -9,6 +10,7 @@ export type PanelMeta = {
   icon?: string;
   order: number;
   defaultSize: PanelSize;
+  placement?: PanelPlacement;
 };
 
 export type PanelUI = FC;
