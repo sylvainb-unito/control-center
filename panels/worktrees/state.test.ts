@@ -33,9 +33,11 @@ describe('classifyWorktreeState', () => {
     expect(classifyWorktreeState(base)).toBe('pr-pending');
   });
 
-  test('pr-pending when only behind (ahead 0, behind > 0 is irrelevant)', () => {
-    // behind is not part of the classifier input — this just documents the
-    // contract: classification does not depend on behind.
-    expect(classifyWorktreeState(base)).toBe('pr-pending');
+  test('pr-pending when behind > 0 (behind is not a classifier input)', () => {
+    // A full Worktree has `behind`, but WorktreeClassifiable intentionally
+    // does not. This test documents that structural typing passes extras
+    // through harmlessly and that classification does not depend on `behind`.
+    const wt = { ...base, behind: 5 } as const;
+    expect(classifyWorktreeState(wt)).toBe('pr-pending');
   });
 });
