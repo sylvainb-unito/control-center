@@ -64,7 +64,12 @@
   border: 2px solid var(--pink);
   box-shadow: var(--glow-pink);
   padding: 20px;
-  max-width: 500px;
+  max-width: min(500px, 90vw);
+  width: 100%;
+}
+.modalBody code {
+  word-break: break-all;
+  font-size: 12px;
 }
 .actions {
   display: flex;

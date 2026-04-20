@@ -13,6 +13,12 @@ export const UI = () => {
     queryFn: () => fetchJson<ListResponse>('/api/worktrees'),
   });
   const [pending, setPending] = useState<Worktree | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const closePending = () => {
+    setPending(null);
+    setRemoveError(null);
+  };
 
   const remove = useMutation({
     mutationFn: async (args: { path: string; force: boolean }) =>
@@ -21,8 +27,11 @@ export const UI = () => {
         body: JSON.stringify(args),
       }),
     onSuccess: () => {
-      setPending(null);
+      closePending();
       qc.invalidateQueries({ queryKey: QK });
+    },
+    onError: (err) => {
+      setRemoveError((err as Error).message);
     },
   });
 
@@ -71,9 +80,9 @@ export const UI = () => {
       {pending && (
         <div
           className={s.modal}
-          onClick={() => setPending(null)}
+          onClick={closePending}
           onKeyDown={(e) => {
-            if (e.key === 'Escape') setPending(null);
+            if (e.key === 'Escape') closePending();
           }}
           // biome-ignore lint/a11y/useSemanticElements: native <dialog> manages its own open state; div overlay keeps click-outside-to-close simple.
           role="dialog"
@@ -94,8 +103,13 @@ export const UI = () => {
                 ⚠ Uncommitted changes. Use "Force" to remove anyway.
               </p>
             )}
+            {removeError && (
+              <p style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '8px' }}>
+                {removeError}
+              </p>
+            )}
             <div className={s.actions}>
-              <button type="button" className={s.cancel} onClick={() => setPending(null)}>
+              <button type="button" className={s.cancel} onClick={closePending}>
                 cancel
               </button>
               {!pending.dirty && (
