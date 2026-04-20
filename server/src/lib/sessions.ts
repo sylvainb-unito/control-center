@@ -98,17 +98,15 @@ export async function parseSessionFile(
   }
 
   // Primary model: highest output tokens; ties broken by most-recent assistant appearance.
-  const models = Object.keys(result.tokensByModel);
-  if (models.length > 0) {
-    models.sort((a, b) => {
-      const outA = result.tokensByModel[a]?.output ?? 0;
-      const outB = result.tokensByModel[b]?.output ?? 0;
-      if (outB !== outA) return outB - outA;
-      const idxA = lastAssistantIdxByModel.get(a) ?? 0;
-      const idxB = lastAssistantIdxByModel.get(b) ?? 0;
+  const entries = Object.entries(result.tokensByModel);
+  if (entries.length > 0) {
+    entries.sort(([modelA, bucketA], [modelB, bucketB]) => {
+      if (bucketB.output !== bucketA.output) return bucketB.output - bucketA.output;
+      const idxA = lastAssistantIdxByModel.get(modelA) ?? 0;
+      const idxB = lastAssistantIdxByModel.get(modelB) ?? 0;
       return idxB - idxA;
     });
-    result.primaryModel = models[0] ?? null;
+    result.primaryModel = entries[0]?.[0] ?? null;
   }
 
   return result;

@@ -154,5 +154,6 @@ describe('parseSessionFile', () => {
     expect(result.startedAt).toBe('');
     expect(result.messageCount).toBe(0);
     expect(result.primaryModel).toBeNull();
+    expect(result.tokensByModel).toEqual({});
   });
 });
