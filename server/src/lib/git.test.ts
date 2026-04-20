@@ -40,6 +40,7 @@ describe('listWorktrees', () => {
             dirty: false,
             ahead: 3,
             behind: 0,
+            hasUpstream: true,
             lastCommitAt: '2026-04-15T10:00:00Z',
             mergedToMain: true,
             ageDays: 5,
@@ -75,5 +76,89 @@ describe('listWorktrees', () => {
       now: () => Date.parse('2026-04-20T00:00:00Z'),
     });
     expect(result[0]?.worktrees[0]?.mergedToMain).toBe(true);
+    expect(result[0]?.worktrees[0]?.hasUpstream).toBe(true);
+  });
+
+  test('mergedToMain is false when neither main nor master exists', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      const joined = args.join(' ');
+      if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
+      if (joined.includes('rev-parse --short')) return { stdout: 'bbb\n', stderr: '' };
+      if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
+      if (joined.includes('rev-list --left-right')) return { stdout: '0\t0\n', stderr: '' };
+      if (joined.includes('log -1 --format=%cI'))
+        return { stdout: '2026-04-19T10:00:00Z\n', stderr: '' };
+      if (joined.includes('branch --merged')) {
+        const err: ExecFileException = new Error('fatal') as ExecFileException;
+        err.code = 128;
+        throw err;
+      }
+      return { stdout: '', stderr: '' };
+    };
+    const globber = async () => ['/w/proj/.worktrees/feat-x'];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({
+      runner,
+      globber,
+      now: () => Date.parse('2026-04-20T00:00:00Z'),
+    });
+    expect(result[0]?.worktrees[0]?.mergedToMain).toBe(false);
+  });
+
+  test('dirty worktree sets dirty: true', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      const joined = args.join(' ');
+      if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
+      if (joined.includes('rev-parse --short')) return { stdout: 'ccc\n', stderr: '' };
+      if (joined.includes('status --porcelain')) return { stdout: ' M foo.txt\n', stderr: '' };
+      if (joined.includes('rev-list --left-right')) return { stdout: '0\t0\n', stderr: '' };
+      if (joined.includes('log -1 --format=%cI'))
+        return { stdout: '2026-04-19T10:00:00Z\n', stderr: '' };
+      if (joined.includes('branch --merged')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const globber = async () => ['/w/proj/.worktrees/feat-x'];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({
+      runner,
+      globber,
+      now: () => Date.parse('2026-04-20T00:00:00Z'),
+    });
+    expect(result[0]?.worktrees[0]?.dirty).toBe(true);
+  });
+
+  test('hasUpstream is false when rev-list fails', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      const joined = args.join(' ');
+      if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
+      if (joined.includes('rev-parse --short')) return { stdout: 'ddd\n', stderr: '' };
+      if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
+      if (joined.includes('rev-list --left-right')) {
+        throw new Error('no upstream configured');
+      }
+      if (joined.includes('log -1 --format=%cI'))
+        return { stdout: '2026-04-19T10:00:00Z\n', stderr: '' };
+      if (joined.includes('branch --merged')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const globber = async () => ['/w/proj/.worktrees/feat-x'];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({
+      runner,
+      globber,
+      now: () => Date.parse('2026-04-20T00:00:00Z'),
+    });
+    const wt = result[0]?.worktrees[0];
+    expect(wt?.hasUpstream).toBe(false);
+    expect(wt?.ahead).toBe(0);
+    expect(wt?.behind).toBe(0);
+  });
+
+  test('empty glob returns empty repo list', async () => {
+    const runner: Runner = async () => ({ stdout: '', stderr: '' });
+    const globber = async () => [];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({ runner, globber, now: () => 0 });
+    expect(result).toEqual([]);
   });
 });
