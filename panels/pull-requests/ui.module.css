@@ -1,0 +1,42 @@
+.section {
+  margin-bottom: 16px;
+}
+.sectionHead {
+  font-family: "Orbitron", sans-serif;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  font-size: 12px;
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.repo {
+  color: var(--fg-dim);
+  font-family: "VT323", monospace;
+  font-size: 14px;
+  min-width: 80px;
+}
+.num {
+  color: var(--pink);
+  font-weight: bold;
+}
+.title {
+  flex: 1;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.title:hover {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+.badges {
+  display: flex;
+  gap: 3px;
+}
