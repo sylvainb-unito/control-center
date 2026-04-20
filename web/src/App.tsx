@@ -1,4 +1,5 @@
 import type { PanelSize } from '@cc/shared';
+import { ErrorBoundary } from './lib/ErrorBoundary';
 import { panels } from './panels';
 
 const SPAN: Record<PanelSize, string> = { sm: 'span 4', md: 'span 6', lg: 'span 8' };
@@ -20,7 +21,9 @@ export function App() {
               className="panel-slot"
               style={{ gridColumn: SPAN[meta.defaultSize] }}
             >
-              <UI />
+              <ErrorBoundary panelId={meta.id}>
+                <UI />
+              </ErrorBoundary>
             </div>
           ))
         )}
