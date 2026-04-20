@@ -321,4 +321,24 @@ describe('removeWorktree', () => {
     });
     expect(result).toEqual({ branchDeleted: null });
   });
+
+  test('deleteBranch: rev-parse failure skips branch delete but still removes folder', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.join(' ').includes('rev-parse --abbrev-ref'))
+        throw new Error('not a git repository');
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: false,
+      deleteBranch: true,
+      runner,
+    });
+    expect(result).toEqual({ branchDeleted: null });
+    expect(calls.some((a) => a.includes('remove'))).toBe(true);
+    expect(calls.some((a) => a.includes('-D'))).toBe(false);
+  });
 });
