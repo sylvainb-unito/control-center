@@ -1,6 +1,7 @@
+import type { PanelSize } from '@cc/shared';
 import { panels } from './panels';
 
-const SPAN: Record<string, string> = { sm: 'span 4', md: 'span 6', lg: 'span 8' };
+const SPAN: Record<PanelSize, string> = { sm: 'span 4', md: 'span 6', lg: 'span 8' };
 
 export function App() {
   const sorted = [...panels].sort((a, b) => a.meta.order - b.meta.order);

@@ -3,5 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./index.ts" }
+  "exports": { ".": "./index.ts" },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "hono": "^4.6.14",
+    "react": "^18.3.1"
+  }
 }
