@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import pkg from '../package.json' with { type: 'json' };
-import { ok } from './envelope';
+import { fail, ok } from './envelope';
 import { logger } from './logger';
 import { registerRoutes } from './routes';
 
@@ -22,7 +22,7 @@ registerRoutes(app);
 
 app.onError((err, c) => {
   logger.error({ err: err.message, stack: err.stack }, 'unhandled');
-  return c.json({ ok: false, error: { code: 'INTERNAL', message: err.message } }, 500);
+  return c.json(fail('INTERNAL', 'Internal error'), 500);
 });
 
 const port = Number(process.env.PORT ?? 7778);
