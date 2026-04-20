@@ -125,7 +125,15 @@ export type Pricing = Record<string, ModelRates>;
 export function loadPricing(path: string): Pricing {
   try {
     const raw = fs.readFileSync(path, 'utf8');
-    return JSON.parse(raw) as Pricing;
+    const parsed = JSON.parse(raw) as Pricing;
+    for (const [model, rates] of Object.entries(parsed)) {
+      const values = Object.values(rates);
+      if (values.length !== 4 || values.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
+        logger.warn({ path, model }, 'malformed rate in model pricing; skipping model');
+        delete parsed[model];
+      }
+    }
+    return parsed;
   } catch (err) {
     logger.warn({ path, err: (err as Error)?.message }, 'failed to load model pricing; using empty pricing');
     return {};

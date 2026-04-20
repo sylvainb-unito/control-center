@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { Readable } from 'node:stream';
+import fs from 'node:fs';
+import os from 'node:os';
+import nodePath from 'node:path';
 
 describe('officeDayCutoff', () => {
   test('returns start-of-day of the weekday exactly N weekdays before now (weekday now)', async () => {
@@ -203,5 +206,36 @@ describe('applyPricing', () => {
     const { estCostUsd, pricingMissing } = applyPricing({}, pricing);
     expect(estCostUsd).toBe(0);
     expect(pricingMissing).toBe(false);
+  });
+});
+
+describe('loadPricing', () => {
+  test('drops a model whose rates are not all finite numbers', async () => {
+    const { loadPricing } = await import('./sessions');
+    const tmp = nodePath.join(os.tmpdir(), `pricing-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    fs.writeFileSync(tmp, JSON.stringify({
+      'claude-opus-4-7': {
+        inputPerMtok: 15, outputPerMtok: 75, cacheReadPerMtok: 1.5, cacheCreationPerMtok: 18.75,
+      },
+      'broken-model': {
+        inputPerMtok: 'fifteen',
+        outputPerMtok: 75,
+        cacheReadPerMtok: 1.5,
+        cacheCreationPerMtok: 18.75,
+      },
+    }));
+    try {
+      const result = loadPricing(tmp);
+      expect(result['claude-opus-4-7']).toBeDefined();
+      expect(result['broken-model']).toBeUndefined();
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  test('returns empty object when file does not exist', async () => {
+    const { loadPricing } = await import('./sessions');
+    const result = loadPricing('/nonexistent/path/pricing.json');
+    expect(result).toEqual({});
   });
 });
