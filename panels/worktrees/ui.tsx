@@ -23,6 +23,7 @@ export const UI = () => {
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [partial, setPartial] = useState<DeleteResponse | null>(null);
 
+  // partial is only meaningful while pending is non-null; clear both together.
   const closePending = () => {
     setPending(null);
     setRemoveError(null);
