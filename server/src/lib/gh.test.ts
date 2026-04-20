@@ -31,12 +31,12 @@ describe('gh token + graphql', () => {
 
     expect(calls).toBe(1);
     expect(fetcher).toHaveBeenCalledTimes(2);
-    const firstCall = fetcher.mock.calls[0];
-    expect(firstCall).toBeDefined();
-    const [, init] = firstCall ?? [];
-    const headers = (init as RequestInit | undefined)?.headers as
-      | Record<string, string>
+    const firstCall = fetcher.mock.calls[0] as unknown as
+      | [unknown, RequestInit | undefined]
       | undefined;
+    expect(firstCall).toBeDefined();
+    const init = firstCall?.[1];
+    const headers = init?.headers as Record<string, string> | undefined;
     expect(headers?.Authorization).toBe('Bearer gho_secret');
   });
 

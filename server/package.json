@@ -9,10 +9,11 @@
     "./lib/gh": "./src/lib/gh.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js",
-    "test": "vitest run"
+    "dev": "SERVE_STATIC=false PORT=7778 tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@cc/shared": "workspace:*",
