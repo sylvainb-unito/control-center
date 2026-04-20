@@ -1,5 +1,5 @@
 import { fail, ok } from '@cc/server/envelope';
-import { GitError, listWorktrees, removeWorktree } from '@cc/server/lib/git';
+import { GitError, type RemoveWorktreeResult, listWorktrees, removeWorktree } from '@cc/server/lib/git';
 import { Hono } from 'hono';
 
 export const api = new Hono();
@@ -17,11 +17,7 @@ api.delete('/', async (c) => {
       force: body.force === true,
       deleteBranch: body.deleteBranch === true,
     });
-    const data: {
-      removed: string;
-      branchDeleted: string | null;
-      branchDeleteError?: string;
-    } = {
+    const data: { removed: string } & RemoveWorktreeResult = {
       removed: body.path,
       branchDeleted: result.branchDeleted,
     };
