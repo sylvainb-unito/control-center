@@ -80,7 +80,7 @@ export type SessionSummary = {
     cacheCreation: number;
   };
   estCostUsd: number;             // sum of (tokensByModel × pricing); 0 if model unknown
-  pricingMissing: boolean;        // true if primaryModel has no rate in config
+  pricingMissing: boolean;        // true if ANY model in the session lacks a rate (stricter than primary-only — any unpriced contribution is visible)
   isLive: boolean;
 };
 ```

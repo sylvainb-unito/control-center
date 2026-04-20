@@ -422,7 +422,7 @@ git commit -m "feat(server): streaming JSONL parser for claude session aggregate
 - Modify: `server/src/lib/sessions.ts`
 - Modify: `server/src/lib/sessions.test.ts`
 
-Adds `ModelPricing` type, `loadPricing(path)` reader, and `applyPricing(tokensByModel, pricing)` that produces `{ estCostUsd, pricingMissing }`. Pricing is loaded once at server boot (caller responsibility).
+Adds `ModelRates` type, `loadPricing(path)` reader, and `applyPricing(tokensByModel, pricing)` that produces `{ estCostUsd, pricingMissing }`. Pricing is loaded once at server boot (caller responsibility).
 
 - [ ] **Step 1: Write the failing tests**
 
