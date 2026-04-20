@@ -40,3 +40,78 @@
   display: flex;
   gap: 3px;
 }
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.search {
+  flex: 1;
+  background: rgba(11, 2, 33, 0.6);
+  border: 1px solid rgba(255, 113, 206, 0.35);
+  color: var(--fg);
+  padding: 4px 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  border-radius: 3px;
+}
+.search:focus {
+  border-color: var(--cyan);
+  outline: none;
+}
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fg-dim);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input {
+  accent-color: var(--pink);
+  cursor: pointer;
+}
+.clear {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--fg-dim);
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.clear:hover {
+  color: var(--pink);
+  border-color: var(--pink);
+}
+.repoChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.chip {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid rgba(255, 113, 206, 0.35);
+  padding: 2px 8px;
+  font-family: "VT323", monospace;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+.chip:hover {
+  color: var(--pink);
+  border-color: var(--pink);
+}
+.chipHidden {
+  color: var(--danger);
+  border-color: var(--danger);
+  opacity: 0.5;
+  text-decoration: line-through;
+}

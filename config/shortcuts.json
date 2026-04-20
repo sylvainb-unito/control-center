@@ -1,30 +1,49 @@
 [
   {
+    "id": "claude",
+    "label": "Claude",
+    "logo": "claude.svg",
+    "links": [{ "label": "App", "url": "https://claude.ai/" }]
+  },
+  {
     "id": "asana",
     "label": "Asana",
     "logo": "asana.svg",
     "links": [
       { "label": "My tasks", "url": "https://app.asana.com/0/me" },
-      { "label": "Inbox", "url": "https://app.asana.com/0/inbox" }
+      { "label": "Inbox", "url": "https://app.asana.com/0/inbox" },
+      {
+        "label": "AI Hub",
+        "url": "https://app.asana.com/1/17620819608777/project/1210485272336900/list/1210487366136182"
+      },
+      {
+        "label": "Eversync Squad",
+        "url": "https://app.asana.com/1/17620819608777/project/1207210922390672/list/1207210953313005"
+      }
     ]
   },
   {
     "id": "stripe",
     "label": "Stripe",
     "logo": "stripe.svg",
-    "links": [{ "label": "Dashboard", "url": "https://dashboard.stripe.com" }]
+    "links": [
+      {
+        "label": "Dashboard",
+        "url": "https://dashboard.stripe.com/acct_18zHPYIsJRCq6PK2/dashboard"
+      }
+    ]
   },
   {
     "id": "snowflake",
     "label": "Snowflake",
     "logo": "snowflake.svg",
-    "links": [{ "label": "Worksheet", "url": "https://app.snowflake.com" }]
+    "links": [{ "label": "Worksheet", "url": "https://app.snowflake.com/ocsrgec/opa23396" }]
   },
   {
     "id": "dbt",
     "label": "dbt",
     "logo": "dbt.svg",
-    "links": [{ "label": "Cloud", "url": "https://cloud.getdbt.com" }]
+    "links": [{ "label": "Cloud", "url": "https://ku537.us1.dbt.com/home" }]
   },
   {
     "id": "segment",

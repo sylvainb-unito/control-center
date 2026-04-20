@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { fetchJson } from '../../web/src/lib/fetchJson';
 import type { ListResponse, PR } from './types';
 import s from './ui.module.css';
@@ -34,11 +35,64 @@ function Row({ pr }: { pr: PR }) {
   );
 }
 
+type Filters = {
+  search: string;
+  hideDrafts: boolean;
+  hiddenRepos: Set<string>;
+};
+
+function apply(prs: PR[], f: Filters): PR[] {
+  const q = f.search.trim().toLowerCase();
+  return prs.filter((pr) => {
+    if (f.hideDrafts && pr.isDraft) return false;
+    if (f.hiddenRepos.has(pr.repo)) return false;
+    if (q && !pr.title.toLowerCase().includes(q) && !pr.repo.toLowerCase().includes(q)) {
+      return false;
+    }
+    return true;
+  });
+}
+
 export const UI = () => {
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
     queryKey: ['pull-requests'],
     queryFn: () => fetchJson<ListResponse>('/api/pull-requests'),
   });
+
+  const [search, setSearch] = useState('');
+  const [hideDrafts, setHideDrafts] = useState(false);
+  const [hiddenRepos, setHiddenRepos] = useState<Set<string>>(new Set());
+
+  const { repos, filteredAuthored, filteredReview } = useMemo(() => {
+    if (!data) {
+      return { repos: [] as string[], filteredAuthored: [] as PR[], filteredReview: [] as PR[] };
+    }
+    const filters: Filters = { search, hideDrafts, hiddenRepos };
+    const all = [...data.authored, ...data.reviewRequested];
+    const uniqueRepos = [...new Set(all.map((p) => p.repo))].sort();
+    return {
+      repos: uniqueRepos,
+      filteredAuthored: apply(data.authored, filters),
+      filteredReview: apply(data.reviewRequested, filters),
+    };
+  }, [data, search, hideDrafts, hiddenRepos]);
+
+  const toggleRepo = (repo: string) => {
+    setHiddenRepos((prev) => {
+      const next = new Set(prev);
+      if (next.has(repo)) next.delete(repo);
+      else next.add(repo);
+      return next;
+    });
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setHideDrafts(false);
+    setHiddenRepos(new Set());
+  };
+
+  const hasFilters = search !== '' || hideDrafts || hiddenRepos.size > 0;
 
   return (
     <div className="panel">
@@ -53,17 +107,62 @@ export const UI = () => {
         {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
         {data && (
           <>
+            <div className={s.filters}>
+              <input
+                className={s.search}
+                type="search"
+                placeholder="filter by title or repo…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <label className={s.toggle}>
+                <input
+                  type="checkbox"
+                  checked={hideDrafts}
+                  onChange={(e) => setHideDrafts(e.target.checked)}
+                />
+                <span>hide drafts</span>
+              </label>
+              {hasFilters && (
+                <button type="button" className={s.clear} onClick={clearFilters}>
+                  clear
+                </button>
+              )}
+            </div>
+            {repos.length > 0 && (
+              <div className={s.repoChips}>
+                {repos.map((repo) => (
+                  <button
+                    key={repo}
+                    type="button"
+                    className={`${s.chip} ${hiddenRepos.has(repo) ? s.chipHidden : ''}`}
+                    onClick={() => toggleRepo(repo)}
+                    title={hiddenRepos.has(repo) ? 'click to include' : 'click to hide'}
+                  >
+                    {repo}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={s.section}>
-              <div className={s.sectionHead}>Yours ({data.authored.length})</div>
-              {data.authored.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
-              {data.authored.map((pr) => (
+              <div className={s.sectionHead}>
+                Yours ({filteredAuthored.length}
+                {filteredAuthored.length !== data.authored.length && `/${data.authored.length}`})
+              </div>
+              {filteredAuthored.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
+              {filteredAuthored.map((pr) => (
                 <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
               ))}
             </div>
             <div className={s.section}>
-              <div className={s.sectionHead}>To Review ({data.reviewRequested.length})</div>
-              {data.reviewRequested.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
-              {data.reviewRequested.map((pr) => (
+              <div className={s.sectionHead}>
+                To Review ({filteredReview.length}
+                {filteredReview.length !== data.reviewRequested.length &&
+                  `/${data.reviewRequested.length}`}
+                )
+              </div>
+              {filteredReview.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
+              {filteredReview.map((pr) => (
                 <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
               ))}
             </div>
