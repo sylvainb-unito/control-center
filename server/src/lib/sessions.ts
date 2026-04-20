@@ -1,6 +1,9 @@
 import fs from 'node:fs';
+import { glob as nativeGlob } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import type { Readable } from 'node:stream';
+import os from 'node:os';
+import path from 'node:path';
 
 import { logger } from '../logger';
 
@@ -172,4 +175,143 @@ export function officeDayCutoff(now: Date, officeDays: number): Date {
   }
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+export type SessionSummary = {
+  sessionId: string;
+  project: string;
+  cwd: string;
+  gitBranch: string | null;
+  startedAt: string;
+  lastActivityAt: string;
+  durationMs: number;
+  messageCount: number;
+  primaryModel: string | null;
+  tokens: TokenBucket;
+  estCostUsd: number;
+  pricingMissing: boolean;
+  isLive: boolean;
+};
+
+export type ListOptions = {
+  officeDays: number;
+  clearCache?: boolean;
+};
+
+export type ListDeps = {
+  now?: () => number;
+  home?: string;
+  pricing?: Pricing;
+  globber?: (pattern: string) => Promise<string[]>;
+  stat?: (p: string) => Promise<{ mtimeMs: number; size: number }>;
+  parser?: (stream: Readable, sessionId: string) => Promise<ParsedSession>;
+  openStream?: (p: string) => Promise<Readable>;
+};
+
+type CacheEntry = { mtime: number; size: number; parsed: ParsedSession };
+const cache = new Map<string, CacheEntry>();
+
+const LIVE_THRESHOLD_MS = 120_000;
+
+const defaultGlobber = async (pattern: string): Promise<string[]> => {
+  const out: string[] = [];
+  for await (const entry of nativeGlob(pattern)) out.push(entry as string);
+  return out;
+};
+
+const defaultStat = async (p: string): Promise<{ mtimeMs: number; size: number }> => {
+  const s = await fs.promises.stat(p);
+  return { mtimeMs: s.mtimeMs, size: s.size };
+};
+
+const defaultOpenStream = async (p: string): Promise<Readable> => {
+  return fs.createReadStream(p);
+};
+
+function sumTokens(tokensByModel: Record<string, TokenBucket>): TokenBucket {
+  const total = emptyBucket();
+  for (const b of Object.values(tokensByModel)) {
+    total.input += b.input;
+    total.output += b.output;
+    total.cacheRead += b.cacheRead;
+    total.cacheCreation += b.cacheCreation;
+  }
+  return total;
+}
+
+export async function listRecentSessions(
+  opts: ListOptions,
+  deps: ListDeps = {},
+): Promise<SessionSummary[]> {
+  if (opts.clearCache) cache.clear();
+  const now = deps.now ?? Date.now;
+  const home = deps.home ?? os.homedir();
+  const pricing = deps.pricing ?? {};
+  const globber = deps.globber ?? defaultGlobber;
+  const stat = deps.stat ?? defaultStat;
+  const parser = deps.parser ?? parseSessionFile;
+  const openStream = deps.openStream ?? defaultOpenStream;
+
+  const cutoff = officeDayCutoff(new Date(now()), opts.officeDays).getTime();
+  const pattern = path.join(home, '.claude', 'projects', '*', '*.jsonl');
+  const files = await globber(pattern);
+
+  const liveThreshold = now() - LIVE_THRESHOLD_MS;
+  const surviving = new Set<string>();
+  const rows: SessionSummary[] = [];
+
+  for (const filePath of files) {
+    const st = await stat(filePath).catch((err) => {
+      logger.warn({ filePath, err: (err as Error)?.message }, 'stat failed; skipping');
+      return null;
+    });
+    if (!st) continue;
+    if (st.mtimeMs < cutoff) continue;
+    surviving.add(filePath);
+
+    const sessionId = path.basename(filePath, '.jsonl');
+    let entry = cache.get(filePath);
+    if (!entry || entry.mtime !== st.mtimeMs || entry.size !== st.size) {
+      // Only open a real stream when using the default parser; injected parsers
+      // receive a stub (they're responsible for obtaining data themselves).
+      const stream = deps.parser ? (null as unknown as Readable) : await openStream(filePath);
+      try {
+        const parsed = await parser(stream, sessionId);
+        entry = { mtime: st.mtimeMs, size: st.size, parsed };
+        cache.set(filePath, entry);
+      } catch (err) {
+        logger.warn({ filePath, err: (err as Error)?.message }, 'parse failed; skipping');
+        continue;
+      }
+    }
+
+    const { parsed } = entry;
+    if (!parsed.startedAt) continue; // no parseable lines → skip entirely
+    const tokens = sumTokens(parsed.tokensByModel);
+    const { estCostUsd, pricingMissing } = applyPricing(parsed.tokensByModel, pricing);
+
+    rows.push({
+      sessionId,
+      project: path.basename(parsed.cwd),
+      cwd: parsed.cwd,
+      gitBranch: parsed.gitBranch,
+      startedAt: parsed.startedAt,
+      lastActivityAt: parsed.lastActivityAt,
+      durationMs: Math.max(0, Date.parse(parsed.lastActivityAt) - Date.parse(parsed.startedAt)),
+      messageCount: parsed.messageCount,
+      primaryModel: parsed.primaryModel,
+      tokens,
+      estCostUsd,
+      pricingMissing,
+      isLive: st.mtimeMs >= liveThreshold,
+    });
+  }
+
+  // Evict cache entries for files no longer in the window.
+  for (const key of [...cache.keys()]) {
+    if (!surviving.has(key)) cache.delete(key);
+  }
+
+  rows.sort((a, b) => (a.startedAt > b.startedAt ? -1 : a.startedAt < b.startedAt ? 1 : 0));
+  return rows;
 }

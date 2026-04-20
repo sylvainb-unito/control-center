@@ -239,3 +239,182 @@ describe('loadPricing', () => {
     expect(result).toEqual({});
   });
 });
+
+describe('listRecentSessions', () => {
+  // Deps-only type for the test helper. `clearCache` is on ListOptions, not ListDeps.
+  type Deps = NonNullable<Parameters<typeof import('./sessions').listRecentSessions>[1]>;
+
+  function makeDeps(overrides: Partial<Deps> = {}): Deps {
+    const base: Deps = {
+      now: () => new Date('2026-04-22T12:00:00Z').getTime(),
+      home: '/home/u',
+      pricing: {
+        'claude-opus-4-7': { inputPerMtok: 15, outputPerMtok: 75, cacheReadPerMtok: 1.5, cacheCreationPerMtok: 18.75 },
+      },
+      globber: async () => [],
+      stat: async () => ({ mtimeMs: 0, size: 0 }),
+      parser: async () => ({
+        sessionId: 'X',
+        cwd: '/p',
+        gitBranch: 'main',
+        startedAt: '2026-04-22T10:00:00Z',
+        lastActivityAt: '2026-04-22T10:00:00Z',
+        messageCount: 0,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+      openStream: async () => {
+        throw new Error('unused in this test');
+      },
+    };
+    return { ...base, ...overrides };
+  }
+
+  test('returns empty array when glob returns nothing', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const result = await listRecentSessions({ officeDays: 10 }, makeDeps());
+    expect(result).toEqual([]);
+  });
+
+  test('includes only files with mtime >= cutoff', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    // cutoff for 2026-04-22 with officeDays=10 is 2026-04-08 00:00 local
+    const recent = new Date('2026-04-21T10:00:00Z').getTime();
+    const old = new Date('2026-04-01T10:00:00Z').getTime();
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj-1/aaa.jsonl', '/home/u/.claude/projects/proj-1/bbb.jsonl'],
+      stat: async (p: string) => ({
+        mtimeMs: p.endsWith('aaa.jsonl') ? recent : old,
+        size: 1000,
+      }),
+      parser: async () => ({
+        sessionId: 'S',
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        startedAt: '2026-04-21T10:00:00Z',
+        lastActivityAt: '2026-04-21T10:00:00Z',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.sessionId).toBe('aaa'); // UUID derives from filename
+  });
+
+  test('uses cache when (mtime, size) match; re-parses when mtime changes', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const mtime1 = new Date('2026-04-21T10:00:00Z').getTime();
+    const mtime2 = mtime1 + 1000;
+    let parseCalls = 0;
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj-1/aaa.jsonl'],
+      stat: async () => ({ mtimeMs: mtime1, size: 1000 }),
+      parser: async () => {
+        parseCalls++;
+        return {
+          sessionId: 'aaa',
+          cwd: '/Users/u/Workspace/proj',
+          gitBranch: null,
+          startedAt: '2026-04-21T10:00:00Z',
+          lastActivityAt: '2026-04-21T10:00:00Z',
+          messageCount: 1,
+          primaryModel: null,
+          tokensByModel: {},
+        };
+      },
+    });
+    await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(parseCalls).toBe(1);
+
+    // Second call, same mtime → no re-parse
+    await listRecentSessions({ officeDays: 10 }, deps);
+    expect(parseCalls).toBe(1);
+
+    // Third call, mtime changed → re-parse
+    const deps2 = { ...deps, stat: async () => ({ mtimeMs: mtime2, size: 1000 }) };
+    await listRecentSessions({ officeDays: 10 }, deps2);
+    expect(parseCalls).toBe(2);
+  });
+
+  test('marks isLive when file mtime is within 120s of now', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const now = new Date('2026-04-22T12:00:00Z').getTime();
+    const deps = makeDeps({
+      now: () => now,
+      globber: async () => [
+        '/home/u/.claude/projects/proj-1/live.jsonl',
+        '/home/u/.claude/projects/proj-1/old.jsonl',
+      ],
+      stat: async (p: string) => ({
+        mtimeMs: p.endsWith('live.jsonl') ? now - 60_000 : now - 10 * 60_000,
+        size: 1,
+      }),
+      parser: async (stream, id) => ({
+        sessionId: id,
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        startedAt: '2026-04-22T11:00:00Z',
+        lastActivityAt: '2026-04-22T11:00:00Z',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    const live = result.find((s) => s.sessionId === 'live');
+    const oldRow = result.find((s) => s.sessionId === 'old');
+    expect(live?.isLive).toBe(true);
+    expect(oldRow?.isLive).toBe(false);
+  });
+
+  test('sorts by startedAt descending', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => [
+        '/home/u/.claude/projects/proj-1/early.jsonl',
+        '/home/u/.claude/projects/proj-1/late.jsonl',
+      ],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async (_stream, id) => ({
+        sessionId: id,
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        startedAt: id === 'late' ? '2026-04-22T11:00:00Z' : '2026-04-22T09:00:00Z',
+        lastActivityAt: '2026-04-22T11:30:00Z',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(result.map((s) => s.sessionId)).toEqual(['late', 'early']);
+  });
+
+  test('computes duration, project basename, estCostUsd, and pricingMissing per row', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/encoded-cwd/aaa.jsonl'],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async () => ({
+        sessionId: 'aaa',
+        cwd: '/Users/u/Workspace/my-repo',
+        gitBranch: 'feat/x',
+        startedAt: '2026-04-22T09:30:00Z',
+        lastActivityAt: '2026-04-22T10:42:00Z',
+        messageCount: 7,
+        primaryModel: 'claude-opus-4-7',
+        tokensByModel: {
+          'claude-opus-4-7': { input: 2_000_000, output: 0, cacheRead: 0, cacheCreation: 0 },
+        },
+      }),
+    });
+    const [row] = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(row?.project).toBe('my-repo');
+    expect(row?.durationMs).toBe(72 * 60_000); // 1h 12m
+    expect(row?.estCostUsd).toBeCloseTo(30, 3); // 2M × $15
+    expect(row?.pricingMissing).toBe(false);
+    expect(row?.gitBranch).toBe('feat/x');
+  });
+});
