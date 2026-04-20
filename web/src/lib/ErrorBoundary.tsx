@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 type Props = { panelId: string; children: ReactNode };
 type State = { error: Error | null };
@@ -10,10 +10,14 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error };
   }
 
-  override componentDidCatch(error: Error): void {
-    console.error(`[panel:${this.props.panelId}]`, error);
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(`[panel:${this.props.panelId}]`, error, info.componentStack);
   }
 
+  // Reset is intentionally naive: clear state -> children re-mount -> their
+  // own useQuery refetches. If a panel throws synchronously on every render,
+  // Retry will loop; React keeps catching, and the user sees the same card.
+  // Acceptable for a localhost dev tool.
   private reset = (): void => this.setState({ error: null });
 
   override render(): ReactNode {

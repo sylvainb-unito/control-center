@@ -53,3 +53,7 @@
   color: var(--pink);
   border-color: var(--pink);
 }
+.panel--error {
+  border-color: var(--danger);
+  box-shadow: 0 0 10px var(--danger), 0 0 22px rgba(255, 45, 111, 0.5);
+}
