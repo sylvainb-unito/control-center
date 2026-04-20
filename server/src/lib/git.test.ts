@@ -162,3 +162,49 @@ describe('listWorktrees', () => {
     expect(result).toEqual([]);
   });
 });
+
+describe('removeWorktree', () => {
+  test('refuses dirty tree without force', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      if (args.includes('status')) return { stdout: ' M foo\n', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    await expect(
+      removeWorktree('/w/proj/.worktrees/x', { force: false, runner }),
+    ).rejects.toMatchObject({ code: 'DIRTY_WORKTREE' });
+  });
+
+  test('runs git worktree remove with --force when forced', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.includes('status')) return { stdout: ' M foo\n', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    await removeWorktree('/w/proj/.worktrees/x', { force: true, runner });
+    const removeCall = calls.find((a) => a.includes('remove'));
+    expect(removeCall).toEqual([
+      '-C',
+      '/w/proj',
+      'worktree',
+      'remove',
+      '--force',
+      '/w/proj/.worktrees/x',
+    ]);
+  });
+
+  test('runs remove without --force when clean', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    await removeWorktree('/w/proj/.worktrees/x', { force: false, runner });
+    const removeCall = calls.find((a) => a.includes('remove'));
+    expect(removeCall).toEqual(['-C', '/w/proj', 'worktree', 'remove', '/w/proj/.worktrees/x']);
+  });
+});

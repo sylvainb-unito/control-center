@@ -180,3 +180,36 @@ export async function listWorktrees(deps: Deps = {}): Promise<Repo[]> {
 
   return [...repos.values()].map(({ __merged: _ignored, ...r }) => r);
 }
+
+export class GitError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = 'GitError';
+  }
+}
+
+export async function removeWorktree(
+  worktreePath: string,
+  opts: { force: boolean; runner?: Runner },
+): Promise<void> {
+  const runner = opts.runner ?? defaultRunner;
+  const repoPath = path.resolve(worktreePath, '..', '..');
+
+  const { stdout: status } = await runner('git', ['-C', worktreePath, 'status', '--porcelain']);
+  if (status.trim().length > 0 && !opts.force) {
+    throw new GitError('DIRTY_WORKTREE', 'worktree has uncommitted changes');
+  }
+
+  const args = ['-C', repoPath, 'worktree', 'remove'];
+  if (opts.force) args.push('--force');
+  args.push(worktreePath);
+  try {
+    await runner('git', args);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ worktreePath, repoPath, err: msg }, 'git worktree remove failed');
+    throw new GitError('REMOVE_FAILED', msg.slice(0, 200));
+  }
+}
