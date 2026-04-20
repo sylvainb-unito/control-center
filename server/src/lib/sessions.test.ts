@@ -157,3 +157,51 @@ describe('parseSessionFile', () => {
     expect(result.tokensByModel).toEqual({});
   });
 });
+
+describe('applyPricing', () => {
+  const pricing = {
+    'claude-opus-4-7': {
+      inputPerMtok: 15.0,
+      outputPerMtok: 75.0,
+      cacheReadPerMtok: 1.5,
+      cacheCreationPerMtok: 18.75,
+    },
+    'claude-sonnet-4-6': {
+      inputPerMtok: 3.0,
+      outputPerMtok: 15.0,
+      cacheReadPerMtok: 0.3,
+      cacheCreationPerMtok: 3.75,
+    },
+  };
+
+  test('computes cost from tokensByModel using rates', async () => {
+    const { applyPricing } = await import('./sessions');
+    const tokensByModel = {
+      'claude-opus-4-7': { input: 1_000_000, output: 500_000, cacheRead: 2_000_000, cacheCreation: 100_000 },
+    };
+    const { estCostUsd, pricingMissing } = applyPricing(tokensByModel, pricing);
+    // input: 1M × $15 = $15; output: 0.5M × $75 = $37.5;
+    // cacheRead: 2M × $1.5 = $3; cacheCreation: 0.1M × $18.75 = $1.875
+    // total = 57.375
+    expect(estCostUsd).toBeCloseTo(57.375, 3);
+    expect(pricingMissing).toBe(false);
+  });
+
+  test('flags pricingMissing when a model has no rates, contributing zero', async () => {
+    const { applyPricing } = await import('./sessions');
+    const tokensByModel = {
+      'claude-opus-4-7': { input: 1_000_000, output: 0, cacheRead: 0, cacheCreation: 0 },
+      'unknown-model-xyz': { input: 999_999, output: 999_999, cacheRead: 0, cacheCreation: 0 },
+    };
+    const { estCostUsd, pricingMissing } = applyPricing(tokensByModel, pricing);
+    expect(estCostUsd).toBeCloseTo(15, 3); // only opus contributed
+    expect(pricingMissing).toBe(true);
+  });
+
+  test('empty tokensByModel yields zero cost and no missing flag', async () => {
+    const { applyPricing } = await import('./sessions');
+    const { estCostUsd, pricingMissing } = applyPricing({}, pricing);
+    expect(estCostUsd).toBe(0);
+    expect(pricingMissing).toBe(false);
+  });
+});

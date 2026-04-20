@@ -1,0 +1,20 @@
+{
+  "claude-opus-4-7": {
+    "inputPerMtok": 15.0,
+    "outputPerMtok": 75.0,
+    "cacheReadPerMtok": 1.5,
+    "cacheCreationPerMtok": 18.75
+  },
+  "claude-sonnet-4-6": {
+    "inputPerMtok": 3.0,
+    "outputPerMtok": 15.0,
+    "cacheReadPerMtok": 0.3,
+    "cacheCreationPerMtok": 3.75
+  },
+  "claude-haiku-4-5-20251001": {
+    "inputPerMtok": 1.0,
+    "outputPerMtok": 5.0,
+    "cacheReadPerMtok": 0.1,
+    "cacheCreationPerMtok": 1.25
+  }
+}

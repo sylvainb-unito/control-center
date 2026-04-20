@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Readable } from 'node:stream';
 
@@ -110,6 +111,45 @@ export async function parseSessionFile(
   }
 
   return result;
+}
+
+export type ModelRates = {
+  inputPerMtok: number;
+  outputPerMtok: number;
+  cacheReadPerMtok: number;
+  cacheCreationPerMtok: number;
+};
+
+export type Pricing = Record<string, ModelRates>;
+
+export function loadPricing(path: string): Pricing {
+  try {
+    const raw = fs.readFileSync(path, 'utf8');
+    return JSON.parse(raw) as Pricing;
+  } catch (err) {
+    logger.warn({ path, err: (err as Error)?.message }, 'failed to load model pricing; using empty pricing');
+    return {};
+  }
+}
+
+export function applyPricing(
+  tokensByModel: Record<string, TokenBucket>,
+  pricing: Pricing,
+): { estCostUsd: number; pricingMissing: boolean } {
+  let estCostUsd = 0;
+  let pricingMissing = false;
+  for (const [model, bucket] of Object.entries(tokensByModel)) {
+    const rates = pricing[model];
+    if (!rates) {
+      pricingMissing = true;
+      continue;
+    }
+    estCostUsd += (bucket.input / 1_000_000) * rates.inputPerMtok;
+    estCostUsd += (bucket.output / 1_000_000) * rates.outputPerMtok;
+    estCostUsd += (bucket.cacheRead / 1_000_000) * rates.cacheReadPerMtok;
+    estCostUsd += (bucket.cacheCreation / 1_000_000) * rates.cacheCreationPerMtok;
+  }
+  return { estCostUsd, pricingMissing };
 }
 
 export function officeDayCutoff(now: Date, officeDays: number): Date {
