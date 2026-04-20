@@ -207,4 +207,118 @@ describe('removeWorktree', () => {
     const removeCall = calls.find((a) => a.includes('remove'));
     expect(removeCall).toEqual(['-C', '/w/proj', 'worktree', 'remove', '/w/proj/.worktrees/x']);
   });
+
+  test('deleteBranch: resolves branch name then runs branch -D after remove', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      if (args.join(' ').includes('rev-parse --abbrev-ref'))
+        return { stdout: 'feat/x\n', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: false,
+      deleteBranch: true,
+      runner,
+    });
+    expect(result).toEqual({ branchDeleted: 'feat/x' });
+
+    // Order matters: rev-parse → status → worktree remove → branch -D
+    const cmdNames = calls.map((a) => a.filter((s) => !s.startsWith('/')).join(' '));
+    const revParseIdx = cmdNames.findIndex((s) => s.includes('rev-parse --abbrev-ref'));
+    const removeIdx = cmdNames.findIndex((s) => s.includes('worktree remove'));
+    const branchDelIdx = cmdNames.findIndex((s) => s.includes('branch -D'));
+    expect(revParseIdx).toBeGreaterThanOrEqual(0);
+    expect(removeIdx).toBeGreaterThan(revParseIdx);
+    expect(branchDelIdx).toBeGreaterThan(removeIdx);
+
+    const branchCall = calls.find((a) => a.includes('-D'));
+    expect(branchCall).toEqual(['-C', '/w/proj', 'branch', '-D', 'feat/x']);
+  });
+
+  test('deleteBranch: returns branchDeleteError when branch -D fails (no throw)', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      if (args.join(' ').includes('rev-parse --abbrev-ref'))
+        return { stdout: 'feat/x\n', stderr: '' };
+      if (args.includes('-D')) throw new Error('branch not found');
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: false,
+      deleteBranch: true,
+      runner,
+    });
+    expect(result.branchDeleted).toBeNull();
+    expect(result.branchDeleteError).toMatch(/branch not found/);
+  });
+
+  test('deleteBranch: skips branch -D when HEAD is detached', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      if (args.join(' ').includes('rev-parse --abbrev-ref'))
+        return { stdout: 'HEAD\n', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: false,
+      deleteBranch: true,
+      runner,
+    });
+    expect(result).toEqual({ branchDeleted: null });
+    expect(calls.some((a) => a.includes('-D'))).toBe(false);
+  });
+
+  test('deleteBranch: force + deleteBranch runs all three git calls', async () => {
+    const calls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      calls.push(args);
+      if (args.includes('status')) return { stdout: ' M f\n', stderr: '' };
+      if (args.join(' ').includes('rev-parse --abbrev-ref'))
+        return { stdout: 'feat/x\n', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: true,
+      deleteBranch: true,
+      runner,
+    });
+    expect(result).toEqual({ branchDeleted: 'feat/x' });
+    expect(calls.find((a) => a.includes('remove'))).toEqual([
+      '-C',
+      '/w/proj',
+      'worktree',
+      'remove',
+      '--force',
+      '/w/proj/.worktrees/x',
+    ]);
+    expect(calls.find((a) => a.includes('-D'))).toEqual([
+      '-C',
+      '/w/proj',
+      'branch',
+      '-D',
+      'feat/x',
+    ]);
+  });
+
+  test('deleteBranch: default false preserves legacy return shape', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      if (args.includes('status')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/x', {
+      force: false,
+      deleteBranch: false,
+      runner,
+    });
+    expect(result).toEqual({ branchDeleted: null });
+  });
 });

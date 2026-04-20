@@ -190,12 +190,39 @@ export class GitError extends Error {
   }
 }
 
+export type RemoveWorktreeResult = {
+  branchDeleted: string | null;
+  branchDeleteError?: string;
+};
+
 export async function removeWorktree(
   worktreePath: string,
-  opts: { force: boolean; runner?: Runner },
-): Promise<void> {
+  opts: { force: boolean; deleteBranch?: boolean; runner?: Runner },
+): Promise<RemoveWorktreeResult> {
   const runner = opts.runner ?? defaultRunner;
   const repoPath = path.resolve(worktreePath, '..', '..');
+
+  // Resolve branch name BEFORE removing the folder — git can't read a gone worktree.
+  let branch: string | null = null;
+  if (opts.deleteBranch) {
+    try {
+      const { stdout } = await runner('git', [
+        '-C',
+        worktreePath,
+        'rev-parse',
+        '--abbrev-ref',
+        'HEAD',
+      ]);
+      const name = stdout.trim();
+      branch = name && name !== 'HEAD' ? name : null;
+    } catch (err) {
+      logger.warn(
+        { worktreePath, err: (err as Error)?.message },
+        'branch resolve failed; will skip branch delete',
+      );
+      branch = null;
+    }
+  }
 
   const { stdout: status } = await runner('git', ['-C', worktreePath, 'status', '--porcelain']);
   if (status.trim().length > 0 && !opts.force) {
@@ -211,5 +238,16 @@ export async function removeWorktree(
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ worktreePath, repoPath, err: msg }, 'git worktree remove failed');
     throw new GitError('REMOVE_FAILED', msg.slice(0, 200));
+  }
+
+  if (!branch) return { branchDeleted: null };
+
+  try {
+    await runner('git', ['-C', repoPath, 'branch', '-D', branch]);
+    return { branchDeleted: branch };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ branch, repoPath, err: msg }, 'git branch -D failed after worktree remove');
+    return { branchDeleted: null, branchDeleteError: msg.slice(0, 200) };
   }
 }
