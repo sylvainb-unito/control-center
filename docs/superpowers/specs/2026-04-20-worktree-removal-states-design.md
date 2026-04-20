@@ -220,9 +220,10 @@ The background list refetches so the row disappears (folder is gone) but the bra
 
 **New:**
 - `shared/worktree-state.ts`
-- `shared/worktree-state.test.ts`
+- `panels/worktrees/state.test.ts` — classifier unit tests (colocated here because `@cc/shared` has no vitest setup and this panel is the only consumer)
 
 **Changed:**
+- `shared/index.ts` (re-export the new module)
 - `server/src/lib/git.ts`
 - `server/src/lib/git.test.ts`
 - `panels/worktrees/api.ts`
