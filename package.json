@@ -1,0 +1,19 @@
+{
+  "name": "control-center",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22", "pnpm": ">=9" },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter server dev & pnpm --filter web dev",
+    "build": "pnpm --filter server build && pnpm --filter web build",
+    "test": "pnpm -r test",
+    "check": "biome check .",
+    "fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.6.3"
+  }
+}
