@@ -12,6 +12,7 @@ describe('officeDayCutoff', () => {
     expect(cutoff.getHours()).toBe(0);
     expect(cutoff.getMinutes()).toBe(0);
     expect(cutoff.getSeconds()).toBe(0);
+    expect(cutoff.getMilliseconds()).toBe(0);
   });
 
   test('skips Saturdays and Sundays while stepping back', async () => {
@@ -33,8 +34,18 @@ describe('officeDayCutoff', () => {
   test('officeDays=0 clamps now to start-of-day (no stepping)', async () => {
     const { officeDayCutoff } = await import('./sessions');
     const now = new Date('2026-04-22T15:30:45');
+    const originalMs = now.getTime();
     const cutoff = officeDayCutoff(now, 0);
     expect(cutoff.getDate()).toBe(22);
     expect(cutoff.getHours()).toBe(0);
+    expect(now.getTime()).toBe(originalMs);
+  });
+
+  test('when now falls on a Saturday, steps back through preceding Friday', async () => {
+    const { officeDayCutoff } = await import('./sessions');
+    // Saturday 2026-04-18 → step back 1 weekday → Friday 2026-04-17
+    const cutoff = officeDayCutoff(new Date('2026-04-18T12:00:00'), 1);
+    expect(cutoff.getDate()).toBe(17);
+    expect(cutoff.getDay()).toBe(5); // Friday
   });
 });
