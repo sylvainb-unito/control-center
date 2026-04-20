@@ -1,5 +1,10 @@
 import { fail, ok } from '@cc/server/envelope';
-import { GitError, type RemoveWorktreeResult, listWorktrees, removeWorktree } from '@cc/server/lib/git';
+import {
+  GitError,
+  type RemoveWorktreeResult,
+  listWorktrees,
+  removeWorktree,
+} from '@cc/server/lib/git';
 import { Hono } from 'hono';
 
 export const api = new Hono();

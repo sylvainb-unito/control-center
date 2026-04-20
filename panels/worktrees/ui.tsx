@@ -1,7 +1,7 @@
+import { type WorktreeState, classifyWorktreeState } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { fetchJson } from '../../web/src/lib/fetchJson';
-import { classifyWorktreeState, type WorktreeState } from '@cc/shared';
 import type { ListResponse, Worktree } from './types';
 import s from './ui.module.css';
 
@@ -111,7 +111,9 @@ export const UI = () => {
           >
             {partial ? (
               <>
-                <p className={s.partialOk}>✓ Folder removed: <code>{partial.removed}</code></p>
+                <p className={s.partialOk}>
+                  ✓ Folder removed: <code>{partial.removed}</code>
+                </p>
                 <p className={s.partialWarn}>
                   ⚠ Branch could not be deleted: {partial.branchDeleteError}
                 </p>
@@ -122,87 +124,100 @@ export const UI = () => {
                 </div>
               </>
             ) : (
-            (() => {
-              const state: WorktreeState = classifyWorktreeState(pending);
-              const pillClass: Record<WorktreeState, string> = {
-                merged: s.statePillMerged,
-                'pr-pending': s.statePillPrPending,
-                unpushed: s.statePillUnpushed,
-                dirty: s.statePillDirty,
-              };
-              const pillLabel: Record<WorktreeState, string> = {
-                merged: 'MERGED',
-                'pr-pending': 'PR PENDING',
-                unpushed: 'UNPUSHED',
-                dirty: 'DIRTY — uncommitted changes',
-              };
-              const recommendation: Record<WorktreeState, string> = {
-                merged: 'Safe to remove. Default: delete branch + remove folder.',
-                'pr-pending':
-                  'Branch is pushed and up to date. Default: remove folder, keep branch.',
-                unpushed:
-                  'Local commits not on any remote. Default: cancel — commits would only survive in the reflog.',
-                dirty:
-                  'Uncommitted changes. Default: remove folder (force), keep branch. Commit or discard to enable branch deletion.',
-              };
+              (() => {
+                const state: WorktreeState = classifyWorktreeState(pending);
+                const pillClass: Record<WorktreeState, string> = {
+                  merged: s.statePillMerged,
+                  'pr-pending': s.statePillPrPending,
+                  unpushed: s.statePillUnpushed,
+                  dirty: s.statePillDirty,
+                };
+                const pillLabel: Record<WorktreeState, string> = {
+                  merged: 'MERGED',
+                  'pr-pending': 'PR PENDING',
+                  unpushed: 'UNPUSHED',
+                  dirty: 'DIRTY — uncommitted changes',
+                };
+                const recommendation: Record<WorktreeState, string> = {
+                  merged: 'Safe to remove. Default: delete branch + remove folder.',
+                  'pr-pending':
+                    'Branch is pushed and up to date. Default: remove folder, keep branch.',
+                  unpushed:
+                    'Local commits not on any remote. Default: cancel — commits would only survive in the reflog.',
+                  dirty:
+                    'Uncommitted changes. Default: remove folder (force), keep branch. Commit or discard to enable branch deletion.',
+                };
 
-              // Which button is recommended (highlighted) for this state
-              const recommended: Record<WorktreeState, 'cancel' | 'removeFolder' | 'deleteBranch'> = {
-                merged: 'deleteBranch',
-                'pr-pending': 'removeFolder',
-                unpushed: 'cancel',
-                dirty: 'removeFolder',
-              };
+                // Which button is recommended (highlighted) for this state
+                const recommended: Record<
+                  WorktreeState,
+                  'cancel' | 'removeFolder' | 'deleteBranch'
+                > = {
+                  merged: 'deleteBranch',
+                  'pr-pending': 'removeFolder',
+                  unpushed: 'cancel',
+                  dirty: 'removeFolder',
+                };
 
-              const forceNeeded = state === 'dirty';
-              const deleteBranchDisabled = state === 'dirty';
+                const forceNeeded = state === 'dirty';
+                const deleteBranchDisabled = state === 'dirty';
 
-              return (
-                <>
-                  <span className={`${s.statePill} ${pillClass[state]}`}>{pillLabel[state]}</span>
-                  <p>
-                    Remove <code>{pending.path}</code>?
-                  </p>
-                  <p className={s.branchLine}>Branch: <code>{pending.branch}</code></p>
-                  <p className={s.recommend}>{recommendation[state]}</p>
-                  {removeError && (
-                    <p style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '8px' }}>
-                      {removeError}
+                return (
+                  <>
+                    <span className={`${s.statePill} ${pillClass[state]}`}>{pillLabel[state]}</span>
+                    <p>
+                      Remove <code>{pending.path}</code>?
                     </p>
-                  )}
-                  <div className={s.actions}>
-                    <button
-                      type="button"
-                      className={`${s.actionBtn} ${recommended[state] === 'cancel' ? s.actionBtnRecommended : ''}`}
-                      onClick={closePending}
-                    >
-                      cancel
-                    </button>
-                    <button
-                      type="button"
-                      className={`${s.actionBtn} ${recommended[state] === 'removeFolder' ? s.actionBtnRecommended : ''}`}
-                      onClick={() =>
-                        remove.mutate({ path: pending.path, force: forceNeeded, deleteBranch: false })
-                      }
-                      disabled={remove.isPending}
-                    >
-                      {forceNeeded ? 'force remove folder' : 'remove folder'}
-                    </button>
-                    <button
-                      type="button"
-                      className={`${s.actionBtn} ${recommended[state] === 'deleteBranch' ? s.actionBtnRecommended : ''}`}
-                      onClick={() =>
-                        remove.mutate({ path: pending.path, force: forceNeeded, deleteBranch: true })
-                      }
-                      disabled={remove.isPending || deleteBranchDisabled}
-                      title={deleteBranchDisabled ? 'commit or discard changes first' : undefined}
-                    >
-                      delete branch + folder
-                    </button>
-                  </div>
-                </>
-              );
-            })()
+                    <p className={s.branchLine}>
+                      Branch: <code>{pending.branch}</code>
+                    </p>
+                    <p className={s.recommend}>{recommendation[state]}</p>
+                    {removeError && (
+                      <p style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '8px' }}>
+                        {removeError}
+                      </p>
+                    )}
+                    <div className={s.actions}>
+                      <button
+                        type="button"
+                        className={`${s.actionBtn} ${recommended[state] === 'cancel' ? s.actionBtnRecommended : ''}`}
+                        onClick={closePending}
+                      >
+                        cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={`${s.actionBtn} ${recommended[state] === 'removeFolder' ? s.actionBtnRecommended : ''}`}
+                        onClick={() =>
+                          remove.mutate({
+                            path: pending.path,
+                            force: forceNeeded,
+                            deleteBranch: false,
+                          })
+                        }
+                        disabled={remove.isPending}
+                      >
+                        {forceNeeded ? 'force remove folder' : 'remove folder'}
+                      </button>
+                      <button
+                        type="button"
+                        className={`${s.actionBtn} ${recommended[state] === 'deleteBranch' ? s.actionBtnRecommended : ''}`}
+                        onClick={() =>
+                          remove.mutate({
+                            path: pending.path,
+                            force: forceNeeded,
+                            deleteBranch: true,
+                          })
+                        }
+                        disabled={remove.isPending || deleteBranchDisabled}
+                        title={deleteBranchDisabled ? 'commit or discard changes first' : undefined}
+                      >
+                        delete branch + folder
+                      </button>
+                    </div>
+                  </>
+                );
+              })()
             )}
           </div>
         </div>
