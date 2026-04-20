@@ -7,7 +7,14 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_BIN="$(command -v node || true)"
-TSX_BIN="$REPO_DIR/node_modules/.bin/tsx"
+# pnpm may place tsx under the root or the server workspace; check both.
+if [[ -x "$REPO_DIR/node_modules/.bin/tsx" ]]; then
+  TSX_BIN="$REPO_DIR/node_modules/.bin/tsx"
+elif [[ -x "$REPO_DIR/server/node_modules/.bin/tsx" ]]; then
+  TSX_BIN="$REPO_DIR/server/node_modules/.bin/tsx"
+else
+  TSX_BIN=""
+fi
 PLIST_LABEL="io.unito.control-center"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
 LOG_DIR="$HOME/Library/Logs"
@@ -18,8 +25,8 @@ if [[ -z "$NODE_BIN" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$TSX_BIN" ]]; then
-  echo "error: tsx not found at $TSX_BIN. Run 'pnpm install' first." >&2
+if [[ -z "$TSX_BIN" ]]; then
+  echo "error: tsx not found in node_modules/.bin. Run 'pnpm install' first." >&2
   exit 1
 fi
 
@@ -28,7 +35,7 @@ mkdir -p "$(dirname "$PLIST_PATH")"
 
 # Build PATH for the agent's EnvironmentVariables so `gh` and other CLIs resolve.
 # Keep it minimal: homebrew (both arches), system bins, and the repo's own node_modules/.bin.
-AGENT_PATH="$REPO_DIR/node_modules/.bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+AGENT_PATH="$REPO_DIR/node_modules/.bin:$REPO_DIR/server/node_modules/.bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 cat >"$PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
