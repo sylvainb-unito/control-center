@@ -1,0 +1,41 @@
+.neon-text {
+  text-shadow: var(--glow-pink);
+}
+.neon-text--cyan {
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+.glow-border {
+  box-shadow: var(--glow-pink);
+}
+.scanlines {
+  position: relative;
+}
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0, 0, 0, 0.15) 2px 3px);
+}
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  font-family: "VT323", monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+}
+.badge--success {
+  color: var(--green);
+}
+.badge--warn {
+  color: var(--yellow);
+}
+.badge--danger {
+  color: var(--danger);
+}
+.badge--info {
+  color: var(--cyan);
+}

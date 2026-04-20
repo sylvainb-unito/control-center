@@ -1,0 +1,18 @@
+:root {
+  --bg-deep: #0b0221;
+  --bg-mid: #1a0540;
+  --bg-hot: #3d0a5c;
+  --sun: #ff006e;
+  --pink: #ff71ce;
+  --cyan: #01cdfe;
+  --green: #05ffa1;
+  --yellow: #fffb96;
+  --fg: #f5e6ff;
+  --fg-dim: #b29fc7;
+  --danger: #ff2d6f;
+  --panel-bg: rgba(11, 2, 33, 0.72);
+  --panel-border: var(--pink);
+  --glow-pink: 0 0 10px #ff71ce, 0 0 22px rgba(255, 113, 206, 0.5);
+  --glow-cyan: 0 0 10px #01cdfe, 0 0 22px rgba(1, 205, 254, 0.5);
+  --radius: 4px;
+}

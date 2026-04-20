@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  color: var(--fg);
+  background: radial-gradient(ellipse 70% 40% at 50% 82%, rgba(255, 0, 110, 0.65), transparent 60%),
+    linear-gradient(
+      180deg,
+      var(--bg-deep) 0%,
+      var(--bg-mid) 50%,
+      var(--bg-hot) 85%,
+      var(--sun) 100%
+    );
+  background-attachment: fixed;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+body::before {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 55%;
+  background-image: repeating-linear-gradient(
+      0deg,
+      transparent 0 39px,
+      rgba(255, 113, 206, 0.45) 39px 40px
+    ), repeating-linear-gradient(90deg, transparent 0 39px, rgba(1, 205, 254, 0.35) 39px 40px);
+  mask-image: linear-gradient(180deg, transparent 0%, black 60%);
+  transform: perspective(600px) rotateX(55deg);
+  transform-origin: top;
+  pointer-events: none;
+  z-index: 0;
+}
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px;
+}
+.app-header {
+  margin-bottom: 28px;
+}
+.app-title {
+  font-family: "Orbitron", sans-serif;
+  font-size: 28px;
+  letter-spacing: 6px;
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  margin: 0;
+}
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
+}
+.panel-slot {
+  min-height: 200px;
+}
+.empty {
+  color: var(--fg-dim);
+  padding: 40px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel-slot {
+    grid-column: 1 / -1 !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+*:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
