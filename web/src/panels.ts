@@ -1,4 +1,6 @@
 import type { PanelMeta, PanelUI } from '@cc/shared';
+import { meta as braindumpMeta } from '../../panels/braindump/meta';
+import { UI as braindumpUI } from '../../panels/braindump/ui';
 import { meta as sessionsMeta } from '../../panels/claude-sessions/meta';
 import { UI as sessionsUI } from '../../panels/claude-sessions/ui';
 import { meta as journalsMeta } from '../../panels/journals/meta';
@@ -18,4 +20,5 @@ export const panels: PanelEntry[] = [
   { meta: shortcutsMeta, UI: shortcutsUI },
   { meta: sessionsMeta, UI: sessionsUI },
   { meta: journalsMeta, UI: journalsUI },
+  { meta: braindumpMeta, UI: braindumpUI },
 ];

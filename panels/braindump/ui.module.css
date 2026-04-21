@@ -1,0 +1,5 @@
+.placeholder {
+  color: var(--fg-dim);
+  font-style: italic;
+  padding: 8px 0;
+}

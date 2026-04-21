@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveStatic } from '@hono/node-server/serve-static';
 import type { Hono } from 'hono';
+import { api as braindumpApi } from '../../panels/braindump/api';
 import { api as sessionsApi } from '../../panels/claude-sessions/api';
 import { api as journalsApi } from '../../panels/journals/api';
 import { api as prsApi } from '../../panels/pull-requests/api';
@@ -17,6 +18,7 @@ export function registerRoutes(app: Hono): void {
   app.route('/api/shortcuts', shortcutsApi);
   app.route('/api/claude-sessions', sessionsApi);
   app.route('/api/journals', journalsApi);
+  app.route('/api/braindump', braindumpApi);
   app.use(
     '/logos/*',
     serveStatic({
