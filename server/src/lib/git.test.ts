@@ -10,7 +10,10 @@ describe('listWorktrees', () => {
       calls.push({ cmd, args });
       const joined = args.join(' ');
       if (joined.includes('worktree list --porcelain'))
-        return { stdout: 'worktree /Users/u/Workspace/proj/.worktrees/feat-x\nbranch refs/heads/feat/x\n', stderr: '' };
+        return {
+          stdout: 'worktree /Users/u/Workspace/proj/.worktrees/feat-x\nbranch refs/heads/feat/x\n',
+          stderr: '',
+        };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'abc1234\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -178,7 +181,10 @@ describe('listWorktrees', () => {
     const runner: Runner = async (_cmd, args) => {
       const joined = args.join(' ');
       if (joined.includes('worktree list --porcelain'))
-        return { stdout: 'worktree /w/proj/.worktrees/registered\nbranch refs/heads/feat/r\n', stderr: '' };
+        return {
+          stdout: 'worktree /w/proj/.worktrees/registered\nbranch refs/heads/feat/r\n',
+          stderr: '',
+        };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/r\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'abc\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -188,10 +194,7 @@ describe('listWorktrees', () => {
       if (joined.includes('branch --merged')) return { stdout: '', stderr: '' };
       return { stdout: '', stderr: '' };
     };
-    const globber = async () => [
-      '/w/proj/.worktrees/registered',
-      '/w/proj/.worktrees/orphan',
-    ];
+    const globber = async () => ['/w/proj/.worktrees/registered', '/w/proj/.worktrees/orphan'];
     const { listWorktrees } = await import('./git');
     const result = await listWorktrees({
       runner,

@@ -55,9 +55,7 @@ describe('classifyWorktreeState', () => {
   });
 
   test('orphan false does not affect other classification', () => {
-    expect(
-      classifyWorktreeState({ ...base, orphan: false, mergedToMain: true }),
-    ).toBe('merged');
+    expect(classifyWorktreeState({ ...base, orphan: false, mergedToMain: true })).toBe('merged');
   });
 
   test('orphan omitted defaults to non-orphan behavior', () => {

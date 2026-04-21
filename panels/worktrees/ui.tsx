@@ -146,7 +146,8 @@ export const UI = () => {
                   dirty: 'DIRTY — uncommitted changes',
                 };
                 const recommendation: Record<WorktreeState, string> = {
-                  orphan: 'Git has no record of this worktree. Only option is to delete the leftover folder.',
+                  orphan:
+                    'Git has no record of this worktree. Only option is to delete the leftover folder.',
                   merged: 'Safe to remove. Default: delete branch + remove folder.',
                   'pr-pending':
                     'Branch is pushed and up to date. Default: remove folder, keep branch.',

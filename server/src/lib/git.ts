@@ -101,14 +101,20 @@ export async function listWorktrees(deps: Deps = {}): Promise<Repo[]> {
     const repoPath = path.resolve(wtPath, '..', '..');
     const repoName = path.basename(repoPath);
 
-    // Ensure repo entry exists (with registered worktree paths from git worktree list --porcelain)
-    if (!repos.has(repoPath)) {
+    let repo = repos.get(repoPath);
+    if (!repo) {
       const merged = await mergedBranches(runner, repoPath);
       const registered = await registeredWorktreePaths(runner, repoPath);
-      repos.set(repoPath, { name: repoName, path: repoPath, worktrees: [], __merged: merged, __registered: registered });
+      repo = {
+        name: repoName,
+        path: repoPath,
+        worktrees: [],
+        __merged: merged,
+        __registered: registered,
+      };
+      repos.set(repoPath, repo);
     }
 
-    const repo = repos.get(repoPath)!;
     const isOrphan = !repo.__registered.has(wtPath);
 
     if (isOrphan) {
