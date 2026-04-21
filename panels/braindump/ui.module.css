@@ -1,5 +1,232 @@
-.placeholder {
+.tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--fg-dim);
+  margin-bottom: 10px;
+}
+.tab {
+  background: transparent;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 6px 0;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+}
+.tab:hover {
+  color: var(--fg);
+}
+.tabActive {
+  color: var(--pink);
+  border-bottom-color: var(--pink);
+  text-shadow: var(--glow-pink);
+}
+.tabBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  background: var(--pink);
+  color: var(--bg);
+  font-size: 10px;
+  border-radius: 8px;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.chip {
+  background: transparent;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.chip:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.chipActive {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 0;
+  color: var(--fg);
+}
+.rowClickable {
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.rowClickable:hover {
+  background: rgba(255, 128, 255, 0.06);
+}
+.chevron {
+  color: var(--fg-dim);
+  width: 12px;
+  display: inline-block;
+  text-align: center;
+}
+.catPill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--bg-mid);
+  border: 1px solid var(--fg-dim);
+  color: var(--fg);
+  min-width: 60px;
+  text-align: center;
+}
+.catTodo {
+  color: var(--pink);
+  border-color: var(--pink);
+}
+.catThought {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+.catReadLater {
+  color: var(--yellow);
+  border-color: var(--yellow);
+}
+.statusNew {
+  color: var(--fg-dim);
+  border-color: var(--fg-dim);
+}
+.statusProcessing {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  animation: pulseCyan 1.6s ease-in-out infinite;
+}
+.statusFailed {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+@keyframes pulseCyan {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.rowTitle {
+  color: var(--fg);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tags {
+  display: inline-flex;
+  gap: 4px;
+}
+.tag {
+  font-size: 10px;
+  padding: 0 6px;
+  background: rgba(0, 240, 255, 0.08);
+  color: var(--cyan);
+  border-radius: 2px;
+}
+.timeAgo {
+  color: var(--fg-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.empty {
   color: var(--fg-dim);
   font-style: italic;
   padding: 8px 0;
+}
+.expand {
+  border-left: 2px solid var(--cyan);
+  padding: 8px 12px 12px 16px;
+  margin: 4px 0 8px 12px;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.expandFail {
+  border-left-color: var(--danger);
+}
+.summary {
+  margin: 0 0 8px 0;
+  color: var(--fg);
+}
+.raw {
+  background: var(--bg-mid);
+  padding: 8px;
+  border-radius: 3px;
+  max-height: 240px;
+  overflow: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 8px 0;
+}
+.rowFooter {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.actionBtn {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--fg-dim);
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.actionBtn:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.actionDanger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.headerBtn {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--fg-dim);
+  padding: 2px 10px;
+  margin-left: 6px;
+  font: inherit;
+  font-size: 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.headerBtn:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.failureLine {
+  color: var(--danger);
+  font-size: 12px;
+  margin: 0 0 8px 0;
 }
