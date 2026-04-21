@@ -50,7 +50,12 @@ function apply(prs: PR[], f: Filters): PR[] {
   return prs.filter((pr) => {
     if (f.hideDrafts && pr.isDraft) return false;
     if (f.activeRepo !== '__all__' && pr.repo !== f.activeRepo) return false;
-    if (q && !pr.title.toLowerCase().includes(q) && !pr.repo.toLowerCase().includes(q)) {
+    if (
+      q &&
+      !pr.title.toLowerCase().includes(q) &&
+      !pr.repo.toLowerCase().includes(q) &&
+      !String(pr.number).includes(q)
+    ) {
       return false;
     }
     return true;
