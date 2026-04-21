@@ -173,9 +173,11 @@ export const UI = () => {
     ]
       .filter(Boolean)
       .join(' ');
-    const onClick = row.isLive
-      ? undefined
-      : () => open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+    const confirmAndOpen = () => {
+      if (!window.confirm(`Resume ${row.project} in a new Ghostty tab?`)) return;
+      open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+    };
+    const onClick = row.isLive ? undefined : confirmAndOpen;
     return (
       <div key={row.sessionId}>
         <div
@@ -184,7 +186,7 @@ export const UI = () => {
           onKeyDown={(e) => {
             if (!row.isLive && (e.key === 'Enter' || e.key === ' ')) {
               e.preventDefault();
-              open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+              confirmAndOpen();
             }
           }}
           // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
