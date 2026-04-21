@@ -59,17 +59,26 @@ body::before {
   padding: 10px 14px;
   margin-bottom: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-.app-header {
-  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
 }
 .app-title {
   font-family: "Orbitron", sans-serif;
-  font-size: 28px;
-  letter-spacing: 6px;
+  letter-spacing: 3px;
   color: var(--cyan);
   text-shadow: var(--glow-cyan);
   margin: 0;
+  white-space: nowrap;
+}
+.app-title-word + .app-title-word {
+  margin-left: 0.4em;
+}
+.app-title-cap {
+  font-size: 22px;
+}
+.app-title-rest {
+  font-size: 14px;
 }
 .panel-grid {
   display: grid;

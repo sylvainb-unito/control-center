@@ -9,6 +9,7 @@ export type Worktree = {
   lastCommitAt: string;
   mergedToMain: boolean;
   ageDays: number;
+  orphan: boolean;
 };
 
 export type Repo = { name: string; path: string; worktrees: Worktree[] };

@@ -18,12 +18,27 @@ function reviewBadge(d: PR['reviewDecision']) {
   return null;
 }
 
-function Row({ pr }: { pr: PR }) {
+function displayRepo(repo: string): string {
+  return repo.startsWith('unitoio/') ? repo.slice('unitoio/'.length) : repo;
+}
+
+function Row({ pr, showRepo }: { pr: PR; showRepo: boolean }) {
   return (
     <div className="panel-row">
-      <span className={s.repo}>{pr.repo}</span>
+      {showRepo && (
+        <span className={s.repo} title={displayRepo(pr.repo)}>
+          {displayRepo(pr.repo)}
+        </span>
+      )}
       <span className={s.num}>#{pr.number}</span>
-      <a className={s.title} href={pr.url} target="_blank" rel="noopener noreferrer">
+      <a
+        className={s.title}
+        href={pr.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={pr.title}
+        data-full={pr.title}
+      >
         {pr.title}
       </a>
       <span className={s.badges}>
@@ -38,15 +53,20 @@ function Row({ pr }: { pr: PR }) {
 type Filters = {
   search: string;
   hideDrafts: boolean;
-  hiddenRepos: Set<string>;
+  activeRepo: string;
 };
 
 function apply(prs: PR[], f: Filters): PR[] {
   const q = f.search.trim().toLowerCase();
   return prs.filter((pr) => {
     if (f.hideDrafts && pr.isDraft) return false;
-    if (f.hiddenRepos.has(pr.repo)) return false;
-    if (q && !pr.title.toLowerCase().includes(q) && !pr.repo.toLowerCase().includes(q)) {
+    if (f.activeRepo !== '__all__' && pr.repo !== f.activeRepo) return false;
+    if (
+      q &&
+      !pr.title.toLowerCase().includes(q) &&
+      !pr.repo.toLowerCase().includes(q) &&
+      !String(pr.number).includes(q)
+    ) {
       return false;
     }
     return true;
@@ -60,14 +80,14 @@ export const UI = () => {
   });
 
   const [search, setSearch] = useState('');
-  const [hideDrafts, setHideDrafts] = useState(false);
-  const [hiddenRepos, setHiddenRepos] = useState<Set<string>>(new Set());
+  const [hideDrafts, setHideDrafts] = useState(true);
+  const [activeRepo, setActiveRepo] = useState<string>('__all__');
 
   const { repos, filteredAuthored, filteredReview } = useMemo(() => {
     if (!data) {
       return { repos: [] as string[], filteredAuthored: [] as PR[], filteredReview: [] as PR[] };
     }
-    const filters: Filters = { search, hideDrafts, hiddenRepos };
+    const filters: Filters = { search, hideDrafts, activeRepo };
     const all = [...data.authored, ...data.reviewRequested];
     const uniqueRepos = [...new Set(all.map((p) => p.repo))].sort();
     return {
@@ -75,24 +95,13 @@ export const UI = () => {
       filteredAuthored: apply(data.authored, filters),
       filteredReview: apply(data.reviewRequested, filters),
     };
-  }, [data, search, hideDrafts, hiddenRepos]);
-
-  const toggleRepo = (repo: string) => {
-    setHiddenRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(repo)) next.delete(repo);
-      else next.add(repo);
-      return next;
-    });
-  };
+  }, [data, search, hideDrafts, activeRepo]);
 
   const clearFilters = () => {
     setSearch('');
-    setHideDrafts(false);
-    setHiddenRepos(new Set());
   };
 
-  const hasFilters = search !== '' || hideDrafts || hiddenRepos.size > 0;
+  const hasFilters = search !== '';
 
   return (
     <div className="panel">
@@ -107,11 +116,32 @@ export const UI = () => {
         {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
         {data && (
           <>
+            {repos.length > 0 && (
+              <div className={s.tabs}>
+                <button
+                  type="button"
+                  className={`${s.tab} ${activeRepo === '__all__' ? s.tabActive : ''}`}
+                  onClick={() => setActiveRepo('__all__')}
+                >
+                  All
+                </button>
+                {repos.map((repo) => (
+                  <button
+                    key={repo}
+                    type="button"
+                    className={`${s.tab} ${activeRepo === repo ? s.tabActive : ''}`}
+                    onClick={() => setActiveRepo(repo)}
+                  >
+                    {displayRepo(repo)}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={s.filters}>
               <input
                 className={s.search}
                 type="search"
-                placeholder="filter by title or repo…"
+                placeholder="filter by title or id…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -129,21 +159,6 @@ export const UI = () => {
                 </button>
               )}
             </div>
-            {repos.length > 0 && (
-              <div className={s.repoChips}>
-                {repos.map((repo) => (
-                  <button
-                    key={repo}
-                    type="button"
-                    className={`${s.chip} ${hiddenRepos.has(repo) ? s.chipHidden : ''}`}
-                    onClick={() => toggleRepo(repo)}
-                    title={hiddenRepos.has(repo) ? 'click to include' : 'click to hide'}
-                  >
-                    {repo}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className={s.section}>
               <div className={s.sectionHead}>
                 Yours ({filteredAuthored.length}
@@ -151,7 +166,7 @@ export const UI = () => {
               </div>
               {filteredAuthored.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredAuthored.map((pr) => (
-                <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
+                <Row key={`${pr.repo}-${pr.number}`} pr={pr} showRepo={activeRepo === '__all__'} />
               ))}
             </div>
             <div className={s.section}>
@@ -163,7 +178,7 @@ export const UI = () => {
               </div>
               {filteredReview.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredReview.map((pr) => (
-                <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
+                <Row key={`${pr.repo}-${pr.number}`} pr={pr} showRepo={activeRepo === '__all__'} />
               ))}
             </div>
           </>

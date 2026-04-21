@@ -12,12 +12,13 @@
   color: var(--pink);
   font-weight: bold;
 }
-.dayHeader {
+.sectionHeader {
   font-family: "Orbitron", sans-serif;
-  color: var(--cyan);
+  color: var(--pink);
   letter-spacing: 1.5px;
   font-size: 12px;
-  padding: 8px 0 4px;
+  padding: 12px 0 4px;
+  text-transform: uppercase;
 }
 .row {
   display: flex;
@@ -29,20 +30,32 @@
 .project {
   color: var(--cyan);
   font-weight: bold;
-  min-width: 120px;
+  width: 220px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.meta {
+.branch {
   color: var(--fg-dim);
   font-size: 11px;
+  width: 280px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.msgs {
+.lastActive {
+  color: var(--fg-dim);
+  font-size: 11px;
+  width: 90px;
+  flex-shrink: 0;
+}
+.tokens {
   color: var(--fg-dim);
   font-size: 11px;
   margin-left: auto;
-}
-.pricingMissing {
-  color: var(--yellow);
-  font-size: 11px;
+  white-space: nowrap;
 }
 .rowClickable {
   cursor: pointer;
@@ -55,23 +68,6 @@
   cursor: not-allowed;
   opacity: 0.8;
 }
-.liveDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 6px var(--success);
-  animation: livePulse 1.2s ease-in-out infinite;
-  margin-right: 6px;
-}
-.liveBadge {
-  color: var(--success);
-  font-size: 11px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  margin-right: 8px;
-}
 .rowError {
   color: var(--danger);
   font-size: 11px;
@@ -80,15 +76,6 @@
 .rowFlash {
   animation: rowFlash 600ms ease-out;
 }
-@keyframes livePulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
 @keyframes rowFlash {
   0% {
     background: rgba(255, 128, 255, 0.35);
@@ -96,4 +83,50 @@
   100% {
     background: transparent;
   }
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modalBody {
+  background: var(--bg-mid);
+  border: 2px solid var(--pink);
+  box-shadow: var(--glow-pink);
+  padding: 20px;
+  max-width: min(500px, 90vw);
+  width: 100%;
+}
+.modalBody p {
+  margin: 0 0 16px;
+}
+.modalBody code {
+  word-break: break-all;
+  font-size: 12px;
+}
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.modalCancel {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--fg-dim);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.modalConfirm {
+  background: var(--pink);
+  color: var(--bg-deep);
+  border: 1px solid var(--pink);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
 }

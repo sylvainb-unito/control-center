@@ -75,6 +75,26 @@ describe('worktrees api', () => {
     expect(git.removeWorktree).toHaveBeenLastCalledWith('/p/.worktrees/x', {
       force: false,
       deleteBranch: true,
+      orphan: false,
+    });
+  });
+
+  test('DELETE / forwards orphan flag to removeWorktree', async () => {
+    const git = await import('@cc/server/lib/git');
+    (git.removeWorktree as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      branchDeleted: null,
+    });
+    const { api } = await import('./api');
+    const res = await api.request('/', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/p/.worktrees/orphan', orphan: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(git.removeWorktree).toHaveBeenLastCalledWith('/p/.worktrees/orphan', {
+      force: false,
+      deleteBranch: false,
+      orphan: true,
     });
   });
 

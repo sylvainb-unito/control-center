@@ -178,3 +178,9 @@
   font-size: 12px;
   margin-top: 8px;
 }
+.statePillOrphan {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--fg-dim);
+  border-style: dashed;
+}

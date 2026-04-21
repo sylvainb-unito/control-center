@@ -40,4 +40,25 @@ describe('classifyWorktreeState', () => {
     const wt = { ...base, behind: 5 } as const;
     expect(classifyWorktreeState(wt)).toBe('pr-pending');
   });
+
+  test('orphan wins over everything (dirty + merged + ahead + no upstream)', () => {
+    expect(
+      classifyWorktreeState({
+        ...base,
+        orphan: true,
+        dirty: true,
+        mergedToMain: true,
+        ahead: 5,
+        hasUpstream: false,
+      }),
+    ).toBe('orphan');
+  });
+
+  test('orphan false does not affect other classification', () => {
+    expect(classifyWorktreeState({ ...base, orphan: false, mergedToMain: true })).toBe('merged');
+  });
+
+  test('orphan omitted defaults to non-orphan behavior', () => {
+    expect(classifyWorktreeState({ ...base, mergedToMain: true })).toBe('merged');
+  });
 });

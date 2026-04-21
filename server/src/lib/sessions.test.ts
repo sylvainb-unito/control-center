@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import nodePath from 'node:path';
 import { Readable } from 'node:stream';
 import { describe, expect, test } from 'vitest';
 
@@ -233,99 +230,6 @@ describe('parseSessionFile', () => {
   });
 });
 
-describe('applyPricing', () => {
-  const pricing = {
-    'claude-opus-4-7': {
-      inputPerMtok: 15.0,
-      outputPerMtok: 75.0,
-      cacheReadPerMtok: 1.5,
-      cacheCreationPerMtok: 18.75,
-    },
-    'claude-sonnet-4-6': {
-      inputPerMtok: 3.0,
-      outputPerMtok: 15.0,
-      cacheReadPerMtok: 0.3,
-      cacheCreationPerMtok: 3.75,
-    },
-  };
-
-  test('computes cost from tokensByModel using rates', async () => {
-    const { applyPricing } = await import('./sessions');
-    const tokensByModel = {
-      'claude-opus-4-7': {
-        input: 1_000_000,
-        output: 500_000,
-        cacheRead: 2_000_000,
-        cacheCreation: 100_000,
-      },
-    };
-    const { estCostUsd, pricingMissing } = applyPricing(tokensByModel, pricing);
-    // input: 1M × $15 = $15; output: 0.5M × $75 = $37.5;
-    // cacheRead: 2M × $1.5 = $3; cacheCreation: 0.1M × $18.75 = $1.875
-    // total = 57.375
-    expect(estCostUsd).toBeCloseTo(57.375, 3);
-    expect(pricingMissing).toBe(false);
-  });
-
-  test('flags pricingMissing when a model has no rates, contributing zero', async () => {
-    const { applyPricing } = await import('./sessions');
-    const tokensByModel = {
-      'claude-opus-4-7': { input: 1_000_000, output: 0, cacheRead: 0, cacheCreation: 0 },
-      'unknown-model-xyz': { input: 999_999, output: 999_999, cacheRead: 0, cacheCreation: 0 },
-    };
-    const { estCostUsd, pricingMissing } = applyPricing(tokensByModel, pricing);
-    expect(estCostUsd).toBeCloseTo(15, 3); // only opus contributed
-    expect(pricingMissing).toBe(true);
-  });
-
-  test('empty tokensByModel yields zero cost and no missing flag', async () => {
-    const { applyPricing } = await import('./sessions');
-    const { estCostUsd, pricingMissing } = applyPricing({}, pricing);
-    expect(estCostUsd).toBe(0);
-    expect(pricingMissing).toBe(false);
-  });
-});
-
-describe('loadPricing', () => {
-  test('drops a model whose rates are not all finite numbers', async () => {
-    const { loadPricing } = await import('./sessions');
-    const tmp = nodePath.join(
-      os.tmpdir(),
-      `pricing-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-    );
-    fs.writeFileSync(
-      tmp,
-      JSON.stringify({
-        'claude-opus-4-7': {
-          inputPerMtok: 15,
-          outputPerMtok: 75,
-          cacheReadPerMtok: 1.5,
-          cacheCreationPerMtok: 18.75,
-        },
-        'broken-model': {
-          inputPerMtok: 'fifteen',
-          outputPerMtok: 75,
-          cacheReadPerMtok: 1.5,
-          cacheCreationPerMtok: 18.75,
-        },
-      }),
-    );
-    try {
-      const result = loadPricing(tmp);
-      expect(result['claude-opus-4-7']).toBeDefined();
-      expect(result['broken-model']).toBeUndefined();
-    } finally {
-      fs.unlinkSync(tmp);
-    }
-  });
-
-  test('returns empty object when file does not exist', async () => {
-    const { loadPricing } = await import('./sessions');
-    const result = loadPricing('/nonexistent/path/pricing.json');
-    expect(result).toEqual({});
-  });
-});
-
 describe('listRecentSessions', () => {
   // Deps-only type for the test helper. `clearCache` is on ListOptions, not ListDeps.
   type Deps = NonNullable<Parameters<typeof import('./sessions').listRecentSessions>[1]>;
@@ -334,14 +238,6 @@ describe('listRecentSessions', () => {
     const base: Deps = {
       now: () => new Date('2026-04-22T12:00:00Z').getTime(),
       home: '/home/u',
-      pricing: {
-        'claude-opus-4-7': {
-          inputPerMtok: 15,
-          outputPerMtok: 75,
-          cacheReadPerMtok: 1.5,
-          cacheCreationPerMtok: 18.75,
-        },
-      },
       globber: async () => [],
       stat: async () => ({ mtimeMs: 0, size: 0 }),
       parser: async () => ({
@@ -484,7 +380,7 @@ describe('listRecentSessions', () => {
     expect(result.map((s) => s.sessionId)).toEqual(['late', 'early']);
   });
 
-  test('computes duration, project basename, estCostUsd, and pricingMissing per row', async () => {
+  test('computes duration and project basename per row', async () => {
     const { listRecentSessions } = await import('./sessions');
     const deps = makeDeps({
       globber: async () => ['/home/u/.claude/projects/encoded-cwd/aaa.jsonl'],
@@ -505,8 +401,6 @@ describe('listRecentSessions', () => {
     const [row] = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
     expect(row?.project).toBe('my-repo');
     expect(row?.durationMs).toBe(72 * 60_000); // 1h 12m
-    expect(row?.estCostUsd).toBeCloseTo(30, 3); // 2M × $15
-    expect(row?.pricingMissing).toBe(false);
     expect(row?.gitBranch).toBe('feat/x');
   });
 
@@ -580,6 +474,26 @@ describe('listRecentSessions', () => {
     expect(result[0]?.durationMs).toBe(0);
   });
 
+  test('skips sessions whose parser returned zero messages', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj/empty.jsonl'],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async () => ({
+        sessionId: 'empty',
+        cwd: '',
+        gitBranch: null,
+        startedAt: '2026-04-22T10:00:00Z',
+        lastActivityAt: '2026-04-22T10:00:00Z',
+        messageCount: 0,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(result).toEqual([]);
+  });
+
   test('skips files whose stat call rejects', async () => {
     const { listRecentSessions } = await import('./sessions');
     const deps = makeDeps({
@@ -619,7 +533,7 @@ describe('openSessionInGhostty', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.cmd).toBe('open');
     expect(calls[0]?.args).toEqual([
-      '-na',
+      '-a',
       'Ghostty',
       '--args',
       '--working-directory=/Users/u/Workspace/proj',

@@ -15,12 +15,18 @@ api.get('/', async (c) => {
 });
 
 api.delete('/', async (c) => {
-  const body = await c.req.json<{ path: string; force?: boolean; deleteBranch?: boolean }>();
+  const body = await c.req.json<{
+    path: string;
+    force?: boolean;
+    deleteBranch?: boolean;
+    orphan?: boolean;
+  }>();
   if (!body?.path) return c.json(fail('BAD_REQUEST', 'path required'), 400);
   try {
     const result = await removeWorktree(body.path, {
       force: body.force === true,
       deleteBranch: body.deleteBranch === true,
+      orphan: body.orphan === true,
     });
     const data: { removed: string } & RemoveWorktreeResult = {
       removed: body.path,
