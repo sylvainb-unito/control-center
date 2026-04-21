@@ -81,7 +81,8 @@ export function CaptureModal() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <dialog className={s.card} aria-label="Braindump" open>
+      {/* biome-ignore lint/a11y/useSemanticElements: native <dialog open> drags in UA styles (position absolute, inset 0, black border) that fight the custom retrowave card styling and flex backdrop. */}
+      <div className={s.card} role="dialog" aria-modal="true" aria-label="Braindump">
         <div className={s.title}>Braindump</div>
         <textarea
           ref={textareaRef}
@@ -111,7 +112,7 @@ export function CaptureModal() {
             </button>
           </div>
         </div>
-      </dialog>
+      </div>
     </div>
   );
 }
