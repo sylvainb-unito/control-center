@@ -60,17 +60,12 @@ type MergedSession = SessionSummary & {
   mergedCount: number; // 1 when not merged, >=2 when merged
 };
 
-function mergeByProjectAndDay(sessions: SessionSummary[]): MergedSession[] {
-  // Key = `${project}|${YYYY-MM-DD of lastActivityAt in local tz}`
+function mergeByProject(sessions: SessionSummary[]): MergedSession[] {
   const groups = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
-    const d = new Date(session.lastActivityAt);
-    d.setHours(0, 0, 0, 0);
-    const dayKey = d.toISOString().slice(0, 10);
-    const key = `${session.project}|${dayKey}`;
-    const arr = groups.get(key) ?? [];
+    const arr = groups.get(session.project) ?? [];
     arr.push(session);
-    groups.set(key, arr);
+    groups.set(session.project, arr);
   }
 
   const merged: MergedSession[] = [];
@@ -81,7 +76,6 @@ function mergeByProjectAndDay(sessions: SessionSummary[]): MergedSession[] {
       merged.push({ ...only, mergedCount: 1 });
       continue;
     }
-    // Sort desc by lastActivityAt — "latest" is index 0
     const sorted = [...group].sort((a, b) =>
       a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : 0,
     );
@@ -101,20 +95,39 @@ function mergeByProjectAndDay(sessions: SessionSummary[]): MergedSession[] {
         tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 },
       },
     );
+
+    // primaryModel: pick the one with the highest output tokens across merged sessions
+    // (approximation — we don't have tokensByModel here, but primaryModel of the session
+    // with the largest total tokens is a reasonable proxy)
+    const latestByTokens = [...sorted].sort((a, b) => {
+      const totalA = a.tokens.input + a.tokens.output + a.tokens.cacheRead + a.tokens.cacheCreation;
+      const totalB = b.tokens.input + b.tokens.output + b.tokens.cacheRead + b.tokens.cacheCreation;
+      return totalB - totalA;
+    })[0];
+
     merged.push({
       ...latest,
       messageCount: summed.messageCount,
       tokens: summed.tokens,
+      primaryModel: latestByTokens?.primaryModel ?? latest.primaryModel,
       isLive: sorted.some((s) => s.isLive),
       mergedCount: sorted.length,
     });
   }
 
-  // Sort overall desc by lastActivityAt so groupByDay's downstream .sort().reverse() stays stable
+  // Sort overall desc by lastActivityAt so day-grouping stays temporally consistent
   merged.sort((a, b) =>
     a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : 0,
   );
   return merged;
+}
+
+function buildRowTooltip(row: MergedSession): string {
+  const parts: string[] = [];
+  parts.push(`Model: ${row.primaryModel ?? '—'}`);
+  parts.push(`${row.messageCount} messages`);
+  if (row.mergedCount > 1) parts.push(`${row.mergedCount} sessions merged`);
+  return parts.join(' · ');
 }
 
 function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: SessionSummary[] }> {
@@ -217,7 +230,7 @@ export const UI = () => {
                 {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
               </span>
             </div>
-            {groupByDay(mergeByProjectAndDay(data.sessions)).map((group) => (
+            {groupByDay(mergeByProject(data.sessions)).map((group) => (
               <div key={group.label}>
                 <div className={s.dayHeader}>{group.label}</div>
                 {(group.rows as MergedSession[]).map((row) => {
@@ -231,9 +244,6 @@ export const UI = () => {
                   const onClick = row.isLive
                     ? undefined
                     : () => open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
-                  const title = row.isLive
-                    ? 'session open — switch to it manually (cmd-`)'
-                    : row.cwd;
                   return (
                     <div key={row.sessionId}>
                       <div
@@ -249,27 +259,19 @@ export const UI = () => {
                         role="button"
                         tabIndex={row.isLive ? -1 : 0}
                         aria-disabled={row.isLive}
-                        title={title}
+                        title={
+                          row.isLive
+                            ? `Session open — switch manually (cmd-\`) · ${buildRowTooltip(row)}`
+                            : buildRowTooltip(row)
+                        }
                       >
                         {row.isLive && <span className={s.liveDot} aria-hidden="true" />}
                         {row.isLive && <span className={s.liveBadge}>LIVE</span>}
                         <span className={s.project}>{row.project}</span>
                         <span className={s.meta}>
-                          {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} ·{' '}
-                          {humanizeRelative(row.lastActivityAt, now)}
+                          {row.gitBranch ?? '—'} · {humanizeRelative(row.lastActivityAt, now)}
                         </span>
                         <span className={s.tokens}>{formatTokens(row.tokens)}</span>
-                        <span className={s.msgs}>
-                          {row.messageCount} msgs
-                          {row.mergedCount > 1 && (
-                            <span
-                              className={s.mergedCount}
-                              title={`${row.mergedCount} sessions merged`}
-                            >
-                              ×{row.mergedCount}
-                            </span>
-                          )}
-                        </span>
                       </div>
                       {rowError[row.sessionId] && (
                         <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>

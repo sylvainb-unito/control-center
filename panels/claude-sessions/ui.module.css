@@ -38,11 +38,8 @@
 .tokens {
   color: var(--fg-dim);
   font-size: 11px;
-}
-.msgs {
-  color: var(--fg-dim);
-  font-size: 11px;
   margin-left: auto;
+  white-space: nowrap;
 }
 .rowClickable {
   cursor: pointer;
@@ -96,9 +93,4 @@
   100% {
     background: transparent;
   }
-}
-.mergedCount {
-  color: var(--cyan);
-  font-size: 11px;
-  margin-left: 4px;
 }
