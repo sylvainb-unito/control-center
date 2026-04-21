@@ -28,6 +28,8 @@ export type EntrySummary = {
   tags?: string[];
   processedAt?: string;
   failure?: FailureInfo;
+  /** First ~60 chars of raw body; used by the UI when no processed title exists yet. */
+  preview?: string;
 };
 
 export type ListResponse = {
@@ -139,8 +141,7 @@ function coerceTags(v: unknown): string[] {
 }
 
 function coerceTimestamp(v: unknown): string | null {
-  // gray-matter/js-yaml always parses bare ISO timestamps as Date objects —
-  // matter.stringify does not quote them. coerceTimestamp handles both cases.
+  // js-yaml parses unquoted ISO timestamps as Date; handle both forms.
   if (typeof v === 'string') return v;
   if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
   return null;
@@ -160,9 +161,19 @@ function coerceFailure(v: unknown): FailureInfo | undefined {
   };
 }
 
-function parseSummary(filename: string, raw: string): EntrySummary | null {
-  const parsed = matter(raw);
-  const data = parsed.data as Record<string, unknown>;
+const PREVIEW_LEN = 60;
+
+function buildPreview(body: string): string | undefined {
+  const flat = body.replace(/\s+/gu, ' ').trim();
+  if (flat.length === 0) return undefined;
+  return flat.length > PREVIEW_LEN ? `${flat.slice(0, PREVIEW_LEN)}…` : flat;
+}
+
+function summaryFromFront(
+  filename: string,
+  data: Record<string, unknown>,
+  body: string,
+): EntrySummary | null {
   const id = typeof data.id === 'string' ? data.id : path.basename(filename, '.md');
   const capturedAt = coerceTimestamp(data.capturedAt);
   const status = data.status;
@@ -184,7 +195,14 @@ function parseSummary(filename: string, raw: string): EntrySummary | null {
   if (processedAt) summary.processedAt = processedAt;
   const failure = coerceFailure(data.failure);
   if (failure) summary.failure = failure;
+  const preview = buildPreview(body);
+  if (preview) summary.preview = preview;
   return summary;
+}
+
+function parseSummary(filename: string, raw: string): EntrySummary | null {
+  const parsed = matter(raw);
+  return summaryFromFront(filename, parsed.data as Record<string, unknown>, parsed.content);
 }
 
 export async function listEntries(deps: ListDeps = {}): Promise<ListResponse> {
@@ -297,7 +315,7 @@ export async function readEntry(
   deps: ReadDeps = {},
 ): Promise<{ summary: EntrySummary; rawText: string }> {
   const { front, body } = await loadEntryFile(id, deps);
-  const summary = parseSummary(`${id}.md`, matter.stringify(body, front));
+  const summary = summaryFromFront(`${id}.md`, front, body);
   if (!summary) throw new EntryReadError(`unrecognized braindump shape for ${id}`);
   return { summary, rawText: body };
 }
@@ -345,6 +363,13 @@ export async function markEntryProcessing(id: string, deps: WriteDeps = {}): Pro
   await rewriteFront(id, (front) => ({ ...front, status: 'processing' }), deps);
 }
 
+export const MAX_ATTEMPTS = 3;
+
+function withoutFailure(front: Record<string, unknown>): Record<string, unknown> {
+  const { failure: _drop, ...rest } = front;
+  return rest;
+}
+
 export async function markEntryProcessed(
   id: string,
   fields: ProcessedFields,
@@ -352,18 +377,15 @@ export async function markEntryProcessed(
 ): Promise<void> {
   await rewriteFront(
     id,
-    (front) => {
-      const { failure: _dropFailure, ...rest } = front;
-      return {
-        ...rest,
-        status: 'processed',
-        category: fields.category,
-        title: fields.title,
-        summary: fields.summary,
-        tags: fields.tags,
-        processedAt: fields.processedAt,
-      };
-    },
+    (front) => ({
+      ...withoutFailure(front),
+      status: 'processed',
+      category: fields.category,
+      title: fields.title,
+      summary: fields.summary,
+      tags: fields.tags,
+      processedAt: fields.processedAt,
+    }),
     deps,
   );
 }
@@ -380,7 +402,7 @@ export async function markEntryFailed(
     (front) => {
       const prev = coerceFailure(front.failure);
       const attempts = (prev?.attempts ?? 0) + 1;
-      const nextStatus: EntryStatus = attempts >= 3 ? 'failed' : 'new';
+      const nextStatus: EntryStatus = attempts >= MAX_ATTEMPTS ? 'failed' : 'new';
       return {
         ...front,
         status: nextStatus,
@@ -396,12 +418,5 @@ export async function markEntryFailed(
 }
 
 export async function reprocessEntry(id: string, deps: WriteDeps = {}): Promise<void> {
-  await rewriteFront(
-    id,
-    (front) => {
-      const { failure: _dropFailure, ...rest } = front;
-      return { ...rest, status: 'new' };
-    },
-    deps,
-  );
+  await rewriteFront(id, (front) => ({ ...withoutFailure(front), status: 'new' }), deps);
 }

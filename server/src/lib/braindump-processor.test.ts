@@ -317,3 +317,37 @@ x`,
     await p1;
   });
 });
+
+describe('extractJson', () => {
+  test('returns raw JSON unchanged', async () => {
+    const { extractJson } = await import('./braindump-processor');
+    expect(extractJson('{"a":1}')).toBe('{"a":1}');
+  });
+
+  test('strips a ```json fence', async () => {
+    const { extractJson } = await import('./braindump-processor');
+    expect(extractJson('```json\n{"a":1}\n```')).toBe('{"a":1}');
+  });
+
+  test('strips leading prose', async () => {
+    const { extractJson } = await import('./braindump-processor');
+    expect(extractJson('Here you go:\n{"a":1}')).toBe('{"a":1}');
+  });
+
+  test('processes an entry when the LLM wraps JSON in a fence', async () => {
+    const { processPending } = await import('./braindump-processor');
+    const fs = makeFakeFs({
+      'id-1': '---\nid: id-1\ncapturedAt: 2026-04-21T10:00:00Z\nstatus: new\n---\nbody\n',
+    });
+    const result = await processPending({
+      home: fs.home,
+      readdir: fs.readdir,
+      readFile: fs.readFile,
+      writeFile: fs.writeFile,
+      runClaude: async () =>
+        '```json\n{"category":"thought","title":"t","summary":"s","tags":[]}\n```',
+      now: () => new Date('2026-04-21T11:00:00.000Z'),
+    });
+    expect(result).toEqual({ processed: 1, failed: 0, skipped: 0 });
+  });
+});

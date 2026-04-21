@@ -208,6 +208,41 @@ x`,
     expect(result.processed).toEqual([]);
   });
 
+  test('attaches a whitespace-normalized preview truncated to 60 chars', async () => {
+    const { listEntries } = await import('./braindump');
+    const long = 'pick up milk,\n\n  bread,\tand eggs tonight after the gym session closes';
+    const result = await listEntries({
+      ...makeDeps(),
+      readdir: async () => ['2026-04-21T14-32-08-a7f3.md'],
+      readFile: async () => `---
+id: 2026-04-21T14-32-08-a7f3
+capturedAt: 2026-04-21T14:32:08.412Z
+status: new
+---
+${long}`,
+    });
+    const preview = result.inbox[0]?.preview;
+    expect(preview).toBeDefined();
+    expect(preview).toMatch(/^pick up milk, bread, and eggs/);
+    expect(preview?.endsWith('…')).toBe(true);
+    expect(preview?.length).toBe(61); // 60 chars + ellipsis
+  });
+
+  test('omits preview for empty-body entries', async () => {
+    const { listEntries } = await import('./braindump');
+    const result = await listEntries({
+      ...makeDeps(),
+      readdir: async () => ['2026-04-21T14-32-08-a7f3.md'],
+      readFile: async () => `---
+id: 2026-04-21T14-32-08-a7f3
+capturedAt: 2026-04-21T14:32:08.412Z
+status: new
+---
+`,
+    });
+    expect(result.inbox[0]?.preview).toBeUndefined();
+  });
+
   test('skips non-.md files', async () => {
     const { listEntries } = await import('./braindump');
     const result = await listEntries({

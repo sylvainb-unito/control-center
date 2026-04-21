@@ -32,14 +32,6 @@ app.get('/api/health', (c) =>
 registerRoutes(app);
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-void processPending().catch((err) =>
-  logger.warn({ err: (err as Error).message }, 'braindump boot tick failed'),
-);
-setInterval(() => {
-  void processPending().catch((err) =>
-    logger.warn({ err: (err as Error).message }, 'braindump hourly tick failed'),
-  );
-}, ONE_HOUR_MS);
 
 const WEB_DIST = path.resolve(HERE, '..', '..', 'web', 'dist');
 const serveStaticFiles = process.env.SERVE_STATIC !== 'false';
@@ -59,4 +51,12 @@ const hostname = process.env.BIND_HOST ?? '127.0.0.1';
 
 serve({ fetch: app.fetch, port, hostname }, (info) => {
   logger.info({ port: info.port, hostname, serveStatic: serveStaticFiles }, 'server ready');
+  void processPending().catch((err) =>
+    logger.warn({ err: (err as Error).message }, 'braindump boot tick failed'),
+  );
+  setInterval(() => {
+    void processPending().catch((err) =>
+      logger.warn({ err: (err as Error).message }, 'braindump hourly tick failed'),
+    );
+  }, ONE_HOUR_MS);
 });

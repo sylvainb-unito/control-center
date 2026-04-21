@@ -2,13 +2,35 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { fetchJson } from '../../web/src/lib/fetchJson';
 import { useCaptureModal } from '../../web/src/lib/useCaptureModal';
-import type { BodyResponse, Category, EntryStatus, EntrySummary, ListResponse } from './types';
+import {
+  type BodyResponse,
+  CATEGORY_VALUES,
+  type Category,
+  type EntryStatus,
+  type EntrySummary,
+  type ListResponse,
+} from './types';
 import s from './ui.module.css';
 
 type Tab = 'processed' | 'inbox';
 type CategoryFilter = 'all' | Category;
 
 const QK = ['braindump'] as const;
+const FILTER_VALUES: CategoryFilter[] = ['all', ...CATEGORY_VALUES];
+
+type PillMeta = { className: string | undefined; label: string };
+
+const CATEGORY_META: Record<Category, PillMeta> = {
+  todo: { className: s.catTodo, label: 'TODO' },
+  thought: { className: s.catThought, label: 'THOUGHT' },
+  'read-later': { className: s.catReadLater, label: 'READ-LATER' },
+};
+
+const STATUS_META: Partial<Record<EntryStatus, PillMeta>> = {
+  new: { className: s.statusNew, label: 'NEW' },
+  processing: { className: s.statusProcessing, label: 'PROCESSING' },
+  failed: { className: s.statusFailed, label: 'FAILED' },
+};
 
 function timeAgo(iso: string, now: Date): string {
   const ms = now.getTime() - new Date(iso).getTime();
@@ -20,42 +42,6 @@ function timeAgo(iso: string, now: Date): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.round(hrs / 24);
   return `${days}d ago`;
-}
-
-function categoryClass(cat: Category | undefined): string {
-  if (cat === 'todo') return `${s.catPill} ${s.catTodo}`;
-  if (cat === 'thought') return `${s.catPill} ${s.catThought}`;
-  if (cat === 'read-later') return `${s.catPill} ${s.catReadLater}`;
-  return s.catPill ?? '';
-}
-
-function categoryLabel(cat: Category | undefined): string {
-  if (cat === 'todo') return 'TODO';
-  if (cat === 'thought') return 'THOUGHT';
-  if (cat === 'read-later') return 'READ-LATER';
-  return '—';
-}
-
-function statusClass(st: EntryStatus): string {
-  if (st === 'new') return `${s.catPill} ${s.statusNew}`;
-  if (st === 'processing') return `${s.catPill} ${s.statusProcessing}`;
-  if (st === 'failed') return `${s.catPill} ${s.statusFailed}`;
-  return s.catPill ?? '';
-}
-
-function statusLabel(st: EntryStatus): string {
-  if (st === 'new') return 'NEW';
-  if (st === 'processing') return 'PROCESSING';
-  if (st === 'failed') return 'FAILED';
-  return st.toUpperCase();
-}
-
-function inboxTitle(entry: EntrySummary, bodyPreview: string | undefined): string {
-  // For processing entries a short preview helps; body is lazy-fetched on expand,
-  // so until then we just show the id-derived label.
-  if (entry.title) return entry.title;
-  if (bodyPreview) return bodyPreview.slice(0, 60).replace(/\s+/g, ' ');
-  return entry.id;
 }
 
 const EntryBody = ({ id }: { id: string }) => {
@@ -80,7 +66,11 @@ type RowProps = {
 };
 
 const EntryRow = ({ entry, now, isOpen, onToggle, onReprocess, onDelete, kind }: RowProps) => {
-  const title = kind === 'processed' ? (entry.title ?? entry.id) : inboxTitle(entry, undefined);
+  const title = entry.title ?? entry.preview ?? entry.id;
+  const pill =
+    kind === 'processed'
+      ? entry.category && CATEGORY_META[entry.category]
+      : STATUS_META[entry.status];
   return (
     <div>
       <div
@@ -100,11 +90,7 @@ const EntryRow = ({ entry, now, isOpen, onToggle, onReprocess, onDelete, kind }:
         <span className={s.chevron} aria-hidden="true">
           {isOpen ? '▾' : '▸'}
         </span>
-        {kind === 'processed' ? (
-          <span className={categoryClass(entry.category)}>{categoryLabel(entry.category)}</span>
-        ) : (
-          <span className={statusClass(entry.status)}>{statusLabel(entry.status)}</span>
-        )}
+        <span className={`${s.catPill} ${pill?.className ?? ''}`}>{pill?.label ?? '—'}</span>
         <span className={s.rowTitle}>{title}</span>
         {entry.tags && entry.tags.length > 0 && (
           <span className={s.tags}>
@@ -146,19 +132,25 @@ export const UI = () => {
   const [tab, setTab] = useState<Tab>('processed');
   const [openId, setOpenId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>('all');
-  const now = new Date();
 
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
     queryKey: QK,
     queryFn: () => fetchJson<ListResponse>('/api/braindump'),
   });
 
+  const now = new Date();
+
+  const invalidateAll = (id?: string) => {
+    qc.invalidateQueries({ queryKey: QK });
+    if (id) qc.invalidateQueries({ queryKey: ['braindump-body', id] });
+  };
+
   const processNow = useMutation({
     mutationFn: async () =>
       fetchJson<{ processed: number; failed: number; skipped: number }>('/api/braindump/process', {
         method: 'POST',
       }),
-    onSettled: () => qc.invalidateQueries({ queryKey: QK }),
+    onSettled: () => invalidateAll(),
   });
 
   const reprocess = useMutation({
@@ -166,7 +158,7 @@ export const UI = () => {
       fetchJson<{ reprocessing: true }>(`/api/braindump/${encodeURIComponent(id)}/reprocess`, {
         method: 'POST',
       }),
-    onSettled: () => qc.invalidateQueries({ queryKey: QK }),
+    onSettled: (_data, _err, id) => invalidateAll(id),
   });
 
   const del = useMutation({
@@ -174,15 +166,26 @@ export const UI = () => {
       fetchJson<{ deleted: true }>(`/api/braindump/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       }),
-    onSettled: () => qc.invalidateQueries({ queryKey: QK }),
+    onSettled: (_data, _err, id) => invalidateAll(id),
   });
 
   const toggle = (id: string) => setOpenId((prev) => (prev === id ? null : id));
 
   const inbox = data?.inbox ?? [];
   const processed = data?.processed ?? [];
-  const processedFiltered =
-    filter === 'all' ? processed : processed.filter((e) => e.category === filter);
+  const rows =
+    tab === 'processed'
+      ? filter === 'all'
+        ? processed
+        : processed.filter((e) => e.category === filter)
+      : inbox;
+
+  const emptyCopy =
+    tab === 'inbox'
+      ? 'Nothing pending — waiting for the next processing tick.'
+      : processed.length === 0
+        ? 'No processed entries yet.'
+        : `No entries match "${filter}".`;
 
   return (
     <div className="panel">
@@ -190,7 +193,7 @@ export const UI = () => {
         Braindump
         <button
           type="button"
-          className={s.headerBtn}
+          className={`${s.actionBtn} ${s.headerBtn}`}
           onClick={open}
           title="New braindump (Cmd-Shift-B)"
         >
@@ -198,7 +201,7 @@ export const UI = () => {
         </button>
         <button
           type="button"
-          className={s.headerBtn}
+          className={`${s.actionBtn} ${s.headerBtn}`}
           onClick={() => processNow.mutate()}
           disabled={processNow.isPending}
         >
@@ -227,64 +230,37 @@ export const UI = () => {
           </button>
         </div>
 
-        {isLoading && <p style={{ color: 'var(--fg-dim)' }}>loading…</p>}
-        {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
+        {isLoading && <p className={s.loading}>loading…</p>}
+        {error && <p className={s.error}>{(error as Error).message}</p>}
 
         {tab === 'processed' && (
-          <>
-            <div className={s.chips}>
-              {(['all', 'todo', 'thought', 'read-later'] as CategoryFilter[]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`${s.chip} ${filter === c ? s.chipActive : ''}`}
-                  onClick={() => setFilter(c)}
-                >
-                  {c === 'all' ? 'All' : c}
-                </button>
-              ))}
-            </div>
-            {processedFiltered.length === 0 && !isLoading && (
-              <p className={s.empty}>
-                {processed.length === 0
-                  ? 'No processed entries yet.'
-                  : `No entries match "${filter}".`}
-              </p>
-            )}
-            {processedFiltered.map((entry) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                now={now}
-                isOpen={openId === entry.id}
-                onToggle={() => toggle(entry.id)}
-                onReprocess={() => reprocess.mutate(entry.id)}
-                onDelete={() => del.mutate(entry.id)}
-                kind="processed"
-              />
+          <div className={s.chips}>
+            {FILTER_VALUES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`${s.chip} ${filter === c ? s.chipActive : ''}`}
+                onClick={() => setFilter(c)}
+              >
+                {c === 'all' ? 'All' : c}
+              </button>
             ))}
-          </>
+          </div>
         )}
 
-        {tab === 'inbox' && (
-          <>
-            {inbox.length === 0 && !isLoading && (
-              <p className={s.empty}>Nothing pending — waiting for the next processing tick.</p>
-            )}
-            {inbox.map((entry) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                now={now}
-                isOpen={openId === entry.id}
-                onToggle={() => toggle(entry.id)}
-                onReprocess={() => reprocess.mutate(entry.id)}
-                onDelete={() => del.mutate(entry.id)}
-                kind="inbox"
-              />
-            ))}
-          </>
-        )}
+        {rows.length === 0 && !isLoading && <p className={s.empty}>{emptyCopy}</p>}
+        {rows.map((entry) => (
+          <EntryRow
+            key={entry.id}
+            entry={entry}
+            now={now}
+            isOpen={openId === entry.id}
+            onToggle={() => toggle(entry.id)}
+            onReprocess={() => reprocess.mutate(entry.id)}
+            onDelete={() => del.mutate(entry.id)}
+            kind={tab}
+          />
+        ))}
       </div>
     </div>
   );

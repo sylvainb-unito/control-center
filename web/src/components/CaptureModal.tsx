@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { MAX_RAW_LEN as MAX } from '../../../panels/braindump/types';
 import { fetchJson } from '../lib/fetchJson';
 import { useCaptureModal } from '../lib/useCaptureModal';
 import s from './CaptureModal.module.css';
-
-const MAX = 8000;
 
 export function CaptureModal() {
   const { isOpen, close } = useCaptureModal();

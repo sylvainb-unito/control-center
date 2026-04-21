@@ -1,4 +1,3 @@
-// server/src/lib/braindump-processor.ts
 import { spawn } from 'node:child_process';
 
 import { logger } from '../logger';
@@ -10,7 +9,7 @@ import {
   markEntryFailed,
   markEntryProcessed,
   markEntryProcessing,
-  readEntry,
+  readEntryBody,
 } from './braindump';
 import { PROMPT, isValidLlmOutput } from './braindump-prompt';
 
@@ -80,15 +79,15 @@ async function processOne(
   const id = entry.id;
   try {
     await markEntryProcessing(id, deps);
-    const full = await readEntry(id, deps);
+    const rawText = await readEntryBody(id, deps);
     const raw = await deps.runClaude({
       prompt: PROMPT,
-      input: full.rawText,
+      input: rawText,
       timeoutMs: deps.timeoutMs,
     });
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
+      parsed = JSON.parse(extractJson(raw));
     } catch (err) {
       throw new Error(`claude output was not JSON: ${(err as Error).message}`);
     }
@@ -121,6 +120,15 @@ async function processOne(
       return 'skipped';
     }
   }
+}
+
+// Tolerates prose or ```json fences around the JSON payload — LLMs ignore
+// "no code fence" instructions ~20% of the time.
+export function extractJson(raw: string): string {
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start >= 0 && end > start) return raw.slice(start, end + 1);
+  return raw;
 }
 
 // ---- Default runClaude (spawns `claude -p`) ---------------------------
@@ -158,6 +166,8 @@ export const defaultRunClaude: RunClaude = async ({ prompt, input, timeoutMs }) 
         );
     });
 
+    // Swallow EPIPE if claude exits before we finish writing; the close handler reports the real cause.
+    child.stdin.on('error', () => {});
     child.stdin.end(`${prompt}${input}\n`);
   });
 };
