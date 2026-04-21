@@ -15,8 +15,8 @@ export function App() {
     <main className="app">
       <div className="top-bar">
         <h1 className="app-title">
-          {TITLE_WORDS.map((word, i) => (
-            <span key={`${word}-${i}`} className="app-title-word">
+          {TITLE_WORDS.map((word) => (
+            <span key={word} className="app-title-word">
               <span className="app-title-cap">{word[0]}</span>
               <span className="app-title-rest">{word.slice(1)}</span>
             </span>
