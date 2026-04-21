@@ -9,7 +9,8 @@
     "./lib/gh": "./src/lib/gh.ts",
     "./lib/sessions": "./src/lib/sessions.ts",
     "./lib/journals": "./src/lib/journals.ts",
-    "./lib/braindump": "./src/lib/braindump.ts"
+    "./lib/braindump": "./src/lib/braindump.ts",
+    "./lib/braindump-processor": "./src/lib/braindump-processor.ts"
   },
   "scripts": {
     "dev": "SERVE_STATIC=false PORT=7778 tsx watch src/main.ts",
