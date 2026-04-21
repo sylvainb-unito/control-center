@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { fetchJson } from '../../web/src/lib/fetchJson';
-import type { JournalSummary, ListResponse, Tier } from './types';
+import type { BodyResponse, JournalSummary, ListResponse, Tier } from './types';
 import s from './ui.module.css';
 
 const QK = ['journals'] as const;
@@ -23,14 +25,38 @@ function rowMeta(row: JournalSummary): string {
   return `${reposPart} · ${sessionPart}${periodPart}`;
 }
 
+const JournalBody = ({ tier, id }: { tier: Tier; id: string }) => {
+  const { data, isLoading, error } = useQuery<BodyResponse>({
+    queryKey: ['journal-body', tier, id] as const,
+    queryFn: () => fetchJson<BodyResponse>(`/api/journals/${tier}/${encodeURIComponent(id)}`),
+  });
+  if (isLoading) return <div className={s.bodyLoading}>loading…</div>;
+  if (error) return <div className={s.bodyError}>{(error as Error).message}</div>;
+  if (!data || data.body.trim() === '') return <div className={s.bodyEmpty}>(empty journal)</div>;
+  return (
+    <div className={s.body}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.body}</ReactMarkdown>
+    </div>
+  );
+};
+
 export const UI = () => {
   const [tier, setTier] = useState<Tier>('daily');
+  const [openByTier, setOpenByTier] = useState<Record<Tier, string | null>>({
+    daily: null,
+    weekly: null,
+    monthly: null,
+  });
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
     queryKey: QK,
     queryFn: () => fetchJson<ListResponse>('/api/journals'),
   });
 
   const rows = data?.[tier] ?? [];
+  const openId = openByTier[tier];
+  const toggle = (id: string) => {
+    setOpenByTier((prev) => ({ ...prev, [tier]: prev[tier] === id ? null : id }));
+  };
 
   return (
     <div className="panel">
@@ -56,15 +82,34 @@ export const UI = () => {
         {isLoading && <p style={{ color: 'var(--fg-dim)' }}>loading…</p>}
         {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
         {data && rows.length === 0 && <p className={s.empty}>No {tier} journals yet.</p>}
-        {rows.map((row) => (
-          <div key={row.id} className={s.row}>
-            <span className={s.chevron} aria-hidden="true">
-              ▸
-            </span>
-            <span className={s.rowDate}>{row.id}</span>
-            <span className={s.rowMeta}>{rowMeta(row)}</span>
-          </div>
-        ))}
+        {rows.map((row) => {
+          const isOpen = openId === row.id;
+          return (
+            <div key={row.id}>
+              <div
+                className={`${s.row} ${s.rowClickable}`}
+                onClick={() => toggle(row.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggle(row.id);
+                  }
+                }}
+                // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
+                role="button"
+                tabIndex={0}
+                aria-expanded={isOpen}
+              >
+                <span className={s.chevron} aria-hidden="true">
+                  {isOpen ? '▾' : '▸'}
+                </span>
+                <span className={s.rowDate}>{row.id}</span>
+                <span className={s.rowMeta}>{rowMeta(row)}</span>
+              </div>
+              {isOpen && <JournalBody tier={tier} id={row.id} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

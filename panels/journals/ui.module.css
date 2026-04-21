@@ -51,3 +51,64 @@
   font-style: italic;
   padding: 8px 0;
 }
+.rowClickable {
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.rowClickable:hover {
+  background: rgba(255, 128, 255, 0.06);
+}
+.body {
+  border-left: 2px solid var(--cyan);
+  padding: 8px 12px 12px 16px;
+  margin: 4px 0 8px 12px;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.body h1, .body h2, .body h3, .body h4 {
+  color: var(--pink);
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.body h1 { font-size: 16px; }
+.body h2 { font-size: 14px; }
+.body h3 { font-size: 13px; }
+.body code {
+  background: rgba(0, 240, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+.body pre {
+  background: var(--bg-mid);
+  padding: 8px;
+  border-radius: 3px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+.body pre code {
+  background: transparent;
+  padding: 0;
+}
+.body ul, .body ol {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+.body a {
+  color: var(--cyan);
+}
+.bodyLoading {
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-style: italic;
+}
+.bodyError {
+  color: var(--danger);
+  font-size: 12px;
+}
+.bodyEmpty {
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-style: italic;
+}
