@@ -576,9 +576,9 @@ describe('openSessionInGhostty', () => {
       '--args',
       '--working-directory=/Users/u/Workspace/proj',
       '-e',
-      'claude',
-      '--resume',
-      'abc-123',
+      '/bin/zsh',
+      '-ilc',
+      'claude --resume abc-123',
     ]);
   });
 

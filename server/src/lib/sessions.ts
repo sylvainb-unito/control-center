@@ -347,15 +347,17 @@ export async function openSessionInGhostty(
   const runner = opts.runner ?? defaultRunner;
   try {
     // execFile passes args directly to the binary (no shell parsing), so cwd doesn't need shell escaping.
+    // -ilc on zsh loads .zshrc/.zprofile so `claude` resolves on PATH — ghostty's default `-e` goes through
+    // /usr/bin/login which doesn't source shell init. sessionId is a UUID (safe in a shell command string).
     await runner('open', [
       '-na',
       'Ghostty',
       '--args',
       `--working-directory=${cwd}`,
       '-e',
-      'claude',
-      '--resume',
-      sessionId,
+      '/bin/zsh',
+      '-ilc',
+      `claude --resume ${sessionId}`,
     ]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -126,7 +126,7 @@ export const UI = () => {
             ) : (
               (() => {
                 const state: WorktreeState = classifyWorktreeState(pending);
-                const pillClass: Record<WorktreeState, string> = {
+                const pillClass: Record<WorktreeState, string | undefined> = {
                   merged: s.statePillMerged,
                   'pr-pending': s.statePillPrPending,
                   unpushed: s.statePillUnpushed,
