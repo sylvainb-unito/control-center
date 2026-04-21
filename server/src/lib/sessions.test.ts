@@ -470,3 +470,37 @@ describe('listRecentSessions', () => {
     expect(parseCalls).toBe(2);
   });
 });
+
+describe('openSessionInGhostty', () => {
+  test('invokes open with Ghostty + working-directory + resume command', async () => {
+    const { openSessionInGhostty } = await import('./sessions');
+    const calls: Array<{ cmd: string; args: string[] }> = [];
+    const runner = async (cmd: string, args: string[]) => {
+      calls.push({ cmd, args });
+      return { stdout: '', stderr: '' };
+    };
+    await openSessionInGhostty('abc-123', '/Users/u/Workspace/proj', { runner });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.cmd).toBe('open');
+    expect(calls[0]?.args).toEqual([
+      '-na',
+      'Ghostty',
+      '--args',
+      '--working-directory=/Users/u/Workspace/proj',
+      '-e',
+      'claude',
+      '--resume',
+      'abc-123',
+    ]);
+  });
+
+  test('throws SpawnError when runner rejects', async () => {
+    const { openSessionInGhostty, SpawnError } = await import('./sessions');
+    const runner = async () => {
+      throw new Error('Ghostty not found');
+    };
+    await expect(
+      openSessionInGhostty('abc', '/p', { runner }),
+    ).rejects.toBeInstanceOf(SpawnError);
+  });
+});

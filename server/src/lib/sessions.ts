@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import { glob as nativeGlob } from 'node:fs/promises';
+import { execFile as execFileCb } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { Readable } from 'node:stream';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 import { logger } from '../logger';
 
@@ -312,4 +314,45 @@ export async function listRecentSessions(
 
   rows.sort((a, b) => (a.startedAt > b.startedAt ? -1 : a.startedAt < b.startedAt ? 1 : 0));
   return rows;
+}
+
+const execFileAsync = promisify(execFileCb);
+
+export class SpawnError extends Error {
+  readonly code = 'SPAWN_FAILED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpawnError';
+  }
+}
+
+type Runner = (cmd: string, args: string[]) => Promise<{ stdout: string; stderr: string }>;
+
+const defaultRunner: Runner = async (cmd, args) => {
+  const { stdout, stderr } = await execFileAsync(cmd, args);
+  return { stdout, stderr };
+};
+
+export async function openSessionInGhostty(
+  sessionId: string,
+  cwd: string,
+  opts: { runner?: Runner } = {},
+): Promise<void> {
+  const runner = opts.runner ?? defaultRunner;
+  try {
+    await runner('open', [
+      '-na',
+      'Ghostty',
+      '--args',
+      `--working-directory=${cwd}`,
+      '-e',
+      'claude',
+      '--resume',
+      sessionId,
+    ]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ sessionId, cwd, err: msg }, 'ghostty spawn failed');
+    throw new SpawnError(msg.slice(0, 200));
+  }
 }
