@@ -1,25 +1,6 @@
-export type TokenBucket = {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheCreation: number;
-};
+import type { SessionSummary, TokenBucket } from '@cc/server/lib/sessions';
 
-export type SessionSummary = {
-  sessionId: string;
-  project: string;
-  cwd: string;
-  gitBranch: string | null;
-  startedAt: string;
-  lastActivityAt: string;
-  durationMs: number;
-  messageCount: number;
-  primaryModel: string | null;
-  tokens: TokenBucket;
-  estCostUsd: number;
-  pricingMissing: boolean;
-  isLive: boolean;
-};
+export type { SessionSummary, TokenBucket };
 
 export type ListResponse = {
   sessions: SessionSummary[];

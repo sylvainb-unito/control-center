@@ -1,11 +1,11 @@
 import fs from 'node:fs';
-import { glob as nativeGlob } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import matter from 'gray-matter';
 
 import { logger } from '../logger';
+import { defaultGlobber, defaultStat } from './fs-helpers';
 
 export type Tier = 'daily' | 'weekly' | 'monthly';
 
@@ -35,18 +35,7 @@ export type ListDeps = {
 type CacheEntry = { mtime: number; size: number; parsed: JournalSummary };
 const cache = new Map<string, CacheEntry>();
 
-const TIERS: Tier[] = ['daily', 'weekly', 'monthly'];
-
-const defaultGlobber = async (pattern: string): Promise<string[]> => {
-  const out: string[] = [];
-  for await (const entry of nativeGlob(pattern)) out.push(entry as string);
-  return out;
-};
-
-const defaultStat = async (p: string): Promise<{ mtimeMs: number; size: number }> => {
-  const s = await fs.promises.stat(p);
-  return { mtimeMs: s.mtimeMs, size: s.size };
-};
+export const TIERS: Tier[] = ['daily', 'weekly', 'monthly'];
 
 const defaultReadFile = async (p: string): Promise<string> => fs.promises.readFile(p, 'utf8');
 

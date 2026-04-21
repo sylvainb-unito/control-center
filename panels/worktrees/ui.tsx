@@ -148,7 +148,6 @@ export const UI = () => {
                     'Uncommitted changes. Default: remove folder (force), keep branch. Commit or discard to enable branch deletion.',
                 };
 
-                // Which button is recommended (highlighted) for this state
                 const recommended: Record<
                   WorktreeState,
                   'cancel' | 'removeFolder' | 'deleteBranch'

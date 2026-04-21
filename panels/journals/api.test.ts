@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('@cc/server/lib/journals', () => ({
+  TIERS: ['daily', 'weekly', 'monthly'],
   listJournals: vi.fn(async () => ({ daily: [], weekly: [], monthly: [] })),
   readJournalBody: vi.fn(async () => ''),
   JournalNotFoundError: class JournalNotFoundError extends Error {

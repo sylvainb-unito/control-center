@@ -1,16 +1,16 @@
 import { execFile as execFileCb } from 'node:child_process';
-import { glob as nativeGlob } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { logger } from '../logger';
+import { type Globber, defaultGlobber } from './fs-helpers';
+
+export type { Globber };
 
 const execFile = promisify(execFileCb);
 
 export type Runner = (cmd: string, args: string[]) => Promise<{ stdout: string; stderr: string }>;
-
-export type Globber = (pattern: string) => Promise<string[]>;
 
 export type Worktree = {
   path: string;
@@ -30,12 +30,6 @@ export type Repo = { name: string; path: string; worktrees: Worktree[] };
 const defaultRunner: Runner = async (cmd, args) => {
   const { stdout, stderr } = await execFile(cmd, args, { maxBuffer: 4 * 1024 * 1024 });
   return { stdout, stderr };
-};
-
-const defaultGlobber: Globber = async (pattern) => {
-  const entries: string[] = [];
-  for await (const entry of nativeGlob(pattern)) entries.push(entry as string);
-  return entries;
 };
 
 type Deps = {

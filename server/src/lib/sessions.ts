@@ -1,6 +1,5 @@
 import { execFile as execFileCb } from 'node:child_process';
 import fs from 'node:fs';
-import { glob as nativeGlob } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
@@ -8,6 +7,8 @@ import type { Readable } from 'node:stream';
 import { promisify } from 'node:util';
 
 import { logger } from '../logger';
+import { defaultGlobber, defaultStat } from './fs-helpers';
+import type { Runner } from './git';
 
 export type TokenBucket = {
   input: number;
@@ -221,17 +222,6 @@ const cache = new Map<string, CacheEntry>();
 
 const LIVE_THRESHOLD_MS = 120_000;
 
-const defaultGlobber = async (pattern: string): Promise<string[]> => {
-  const out: string[] = [];
-  for await (const entry of nativeGlob(pattern)) out.push(entry as string);
-  return out;
-};
-
-const defaultStat = async (p: string): Promise<{ mtimeMs: number; size: number }> => {
-  const s = await fs.promises.stat(p);
-  return { mtimeMs: s.mtimeMs, size: s.size };
-};
-
 const defaultOpenStream = async (p: string): Promise<Readable> => {
   return fs.createReadStream(p);
 };
@@ -331,8 +321,6 @@ export class SpawnError extends Error {
     this.name = 'SpawnError';
   }
 }
-
-type Runner = (cmd: string, args: string[]) => Promise<{ stdout: string; stderr: string }>;
 
 const defaultRunner: Runner = async (cmd, args) => {
   const { stdout, stderr } = await execFileAsync(cmd, args);
