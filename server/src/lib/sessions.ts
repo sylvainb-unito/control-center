@@ -122,55 +122,6 @@ export async function parseSessionFile(
   return result;
 }
 
-export type ModelRates = {
-  inputPerMtok: number;
-  outputPerMtok: number;
-  cacheReadPerMtok: number;
-  cacheCreationPerMtok: number;
-};
-
-export type Pricing = Record<string, ModelRates>;
-
-export function loadPricing(path: string): Pricing {
-  try {
-    const raw = fs.readFileSync(path, 'utf8');
-    const parsed = JSON.parse(raw) as Pricing;
-    for (const [model, rates] of Object.entries(parsed)) {
-      const values = Object.values(rates);
-      if (values.length < 4 || values.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
-        logger.warn({ path, model }, 'malformed rate in model pricing; skipping model');
-        delete parsed[model];
-      }
-    }
-    return parsed;
-  } catch (err) {
-    logger.warn(
-      { path, err: (err as Error)?.message },
-      'failed to load model pricing; using empty pricing',
-    );
-    return {};
-  }
-}
-
-export function applyPricing(
-  tokensByModel: Record<string, TokenBucket>,
-  pricing: Pricing,
-): { estCostUsd: number; pricingMissing: boolean } {
-  let estCostUsd = 0;
-  let pricingMissing = false;
-  for (const [model, bucket] of Object.entries(tokensByModel)) {
-    const rates = pricing[model];
-    if (!rates) {
-      pricingMissing = true;
-      continue;
-    }
-    estCostUsd += (bucket.input / 1_000_000) * rates.inputPerMtok;
-    estCostUsd += (bucket.output / 1_000_000) * rates.outputPerMtok;
-    estCostUsd += (bucket.cacheRead / 1_000_000) * rates.cacheReadPerMtok;
-    estCostUsd += (bucket.cacheCreation / 1_000_000) * rates.cacheCreationPerMtok;
-  }
-  return { estCostUsd, pricingMissing };
-}
 
 export function officeDayCutoff(now: Date, officeDays: number): Date {
   // Cutoff = start-of-day of the weekday exactly `officeDays` weekdays before `now`.
@@ -197,8 +148,6 @@ export type SessionSummary = {
   messageCount: number;
   primaryModel: string | null;
   tokens: TokenBucket;
-  estCostUsd: number;
-  pricingMissing: boolean;
   isLive: boolean;
 };
 
@@ -210,7 +159,6 @@ export type ListOptions = {
 export type ListDeps = {
   now?: () => number;
   home?: string;
-  pricing?: Pricing;
   globber?: (pattern: string) => Promise<string[]>;
   stat?: (p: string) => Promise<{ mtimeMs: number; size: number }>;
   parser?: (stream: Readable, sessionId: string) => Promise<ParsedSession>;
@@ -251,7 +199,6 @@ export async function listRecentSessions(
   if (opts.clearCache) cache.clear();
   const now = deps.now ?? Date.now;
   const home = deps.home ?? os.homedir();
-  const pricing = deps.pricing ?? {};
   const globber = deps.globber ?? defaultGlobber;
   const stat = deps.stat ?? defaultStat;
   const parser = deps.parser ?? parseSessionFile;
@@ -291,7 +238,6 @@ export async function listRecentSessions(
     const { parsed } = entry;
     if (!parsed.startedAt) continue; // no parseable lines → skip entirely
     const tokens = sumTokens(parsed.tokensByModel);
-    const { estCostUsd, pricingMissing } = applyPricing(parsed.tokensByModel, pricing);
 
     rows.push({
       sessionId,
@@ -304,8 +250,6 @@ export async function listRecentSessions(
       messageCount: parsed.messageCount,
       primaryModel: parsed.primaryModel,
       tokens,
-      estCostUsd,
-      pricingMissing,
       isLive: st.mtimeMs >= liveThreshold,
     });
   }

@@ -3,16 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
-import { setPricing } from '../../panels/claude-sessions/api';
 import pkg from '../package.json' with { type: 'json' };
 import { fail, ok } from './envelope';
-import { loadPricing } from './lib/sessions';
 import { logger } from './logger';
 import { registerRoutes } from './routes';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const pricingPath = path.resolve(HERE, '..', '..', 'config', 'model-pricing.json');
-setPricing(loadPricing(pricingPath));
 
 const startedAtMs = Date.now();
 const startedAt = new Date(startedAtMs).toISOString();

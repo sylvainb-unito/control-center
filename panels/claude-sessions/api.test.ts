@@ -25,8 +25,6 @@ const sampleSession = {
   messageCount: 10,
   primaryModel: 'claude-opus-4-7',
   tokens: { input: 1000, output: 500, cacheRead: 0, cacheCreation: 0 },
-  estCostUsd: 0.75,
-  pricingMissing: false,
   isLive: false,
 };
 
@@ -38,7 +36,6 @@ describe('claude-sessions api', () => {
       {
         ...sampleSession,
         sessionId: 'def',
-        estCostUsd: 1.25,
         durationMs: 30 * 60_000,
         messageCount: 4,
       },
@@ -53,21 +50,9 @@ describe('claude-sessions api', () => {
       count: 2,
       messageCount: 14,
       durationMs: 90 * 60_000,
-      estCostUsd: 2,
-      pricingMissing: false,
+      tokens: { input: 2000, output: 1000, cacheRead: 0, cacheCreation: 0 },
     });
     expect(body.data.window.officeDays).toBe(10);
-  });
-
-  test('GET / propagates pricingMissing when any session has it', async () => {
-    const svc = await import('@cc/server/lib/sessions');
-    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
-      { ...sampleSession, pricingMissing: true },
-    ]);
-    const { api } = await import('./api');
-    const res = await api.request('/');
-    const body = await res.json();
-    expect(body.data.stats.pricingMissing).toBe(true);
   });
 
   test('POST /open with missing body fields returns 400 BAD_REQUEST', async () => {

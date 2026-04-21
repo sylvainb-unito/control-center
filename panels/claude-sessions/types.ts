@@ -9,8 +9,6 @@ export type ListResponse = {
     durationMs: number;
     messageCount: number;
     tokens: TokenBucket;
-    estCostUsd: number;
-    pricingMissing: boolean;
   };
   window: {
     officeDays: number;

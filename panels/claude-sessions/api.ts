@@ -1,6 +1,5 @@
 import { fail, ok } from '@cc/server/envelope';
 import {
-  type Pricing,
   type SessionSummary,
   SpawnError,
   listRecentSessions,
@@ -11,21 +10,11 @@ import { Hono } from 'hono';
 
 const OFFICE_DAYS = 10;
 
-// Pricing is injected by the server entrypoint (server/src/main.ts) at boot.
-let pricing: Pricing = {};
-
-export function setPricing(p: Pricing): void {
-  pricing = p;
-}
-
 export const api = new Hono();
 
 api.get('/', async (c) => {
   const nowMs = Date.now();
-  const sessions = await listRecentSessions(
-    { officeDays: OFFICE_DAYS },
-    { pricing, now: () => nowMs },
-  );
+  const sessions = await listRecentSessions({ officeDays: OFFICE_DAYS }, { now: () => nowMs });
   const stats = sessions.reduce(
     (acc, s) => {
       acc.count++;
@@ -35,8 +24,6 @@ api.get('/', async (c) => {
       acc.tokens.output += s.tokens.output;
       acc.tokens.cacheRead += s.tokens.cacheRead;
       acc.tokens.cacheCreation += s.tokens.cacheCreation;
-      acc.estCostUsd += s.estCostUsd;
-      if (s.pricingMissing) acc.pricingMissing = true;
       return acc;
     },
     {
@@ -44,8 +31,6 @@ api.get('/', async (c) => {
       durationMs: 0,
       messageCount: 0,
       tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 },
-      estCostUsd: 0,
-      pricingMissing: false,
     },
   );
   const cutoffAt = officeDayCutoff(new Date(nowMs), OFFICE_DAYS).toISOString();
@@ -63,7 +48,7 @@ api.post('/open', async (c) => {
   if (!body?.sessionId || !body?.cwd) {
     return c.json(fail('BAD_REQUEST', 'sessionId and cwd required'), 400);
   }
-  const sessions = await listRecentSessions({ officeDays: OFFICE_DAYS }, { pricing });
+  const sessions = await listRecentSessions({ officeDays: OFFICE_DAYS });
   const match = sessions.find(
     (s: SessionSummary) => s.sessionId === body.sessionId && s.cwd === body.cwd,
   );
