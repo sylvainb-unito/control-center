@@ -88,10 +88,9 @@ export const UI = () => {
 
   const clearFilters = () => {
     setSearch('');
-    setHideDrafts(false);
   };
 
-  const hasFilters = search !== '' || hideDrafts;
+  const hasFilters = search !== '';
 
   return (
     <div className="panel">
