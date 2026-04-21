@@ -31,7 +31,12 @@ export const UI = () => {
   };
 
   const remove = useMutation({
-    mutationFn: async (args: { path: string; force: boolean; deleteBranch: boolean }) =>
+    mutationFn: async (args: {
+      path: string;
+      force: boolean;
+      deleteBranch: boolean;
+      orphan?: boolean;
+    }) =>
       fetchJson<DeleteResponse>('/api/worktrees', {
         method: 'DELETE',
         body: JSON.stringify(args),
@@ -127,18 +132,21 @@ export const UI = () => {
               (() => {
                 const state: WorktreeState = classifyWorktreeState(pending);
                 const pillClass: Record<WorktreeState, string | undefined> = {
+                  orphan: s.statePillOrphan,
                   merged: s.statePillMerged,
                   'pr-pending': s.statePillPrPending,
                   unpushed: s.statePillUnpushed,
                   dirty: s.statePillDirty,
                 };
                 const pillLabel: Record<WorktreeState, string> = {
+                  orphan: 'ORPHAN — folder not registered with git',
                   merged: 'MERGED',
                   'pr-pending': 'PR PENDING',
                   unpushed: 'UNPUSHED',
                   dirty: 'DIRTY — uncommitted changes',
                 };
                 const recommendation: Record<WorktreeState, string> = {
+                  orphan: 'Git has no record of this worktree. Only option is to delete the leftover folder.',
                   merged: 'Safe to remove. Default: delete branch + remove folder.',
                   'pr-pending':
                     'Branch is pushed and up to date. Default: remove folder, keep branch.',
@@ -152,6 +160,7 @@ export const UI = () => {
                   WorktreeState,
                   'cancel' | 'removeFolder' | 'deleteBranch'
                 > = {
+                  orphan: 'removeFolder',
                   merged: 'deleteBranch',
                   'pr-pending': 'removeFolder',
                   unpushed: 'cancel',
@@ -159,7 +168,7 @@ export const UI = () => {
                 };
 
                 const forceNeeded = state === 'dirty';
-                const deleteBranchDisabled = state === 'dirty';
+                const deleteBranchDisabled = state === 'dirty' || state === 'orphan';
 
                 return (
                   <>
@@ -192,6 +201,7 @@ export const UI = () => {
                             path: pending.path,
                             force: forceNeeded,
                             deleteBranch: false,
+                            orphan: pending.orphan,
                           })
                         }
                         disabled={remove.isPending}
@@ -206,10 +216,17 @@ export const UI = () => {
                             path: pending.path,
                             force: forceNeeded,
                             deleteBranch: true,
+                            orphan: pending.orphan,
                           })
                         }
                         disabled={remove.isPending || deleteBranchDisabled}
-                        title={deleteBranchDisabled ? 'commit or discard changes first' : undefined}
+                        title={
+                          deleteBranchDisabled
+                            ? state === 'orphan'
+                              ? 'no branch to delete — git does not track this folder'
+                              : 'commit or discard changes first'
+                            : undefined
+                        }
                       >
                         delete branch + folder
                       </button>
