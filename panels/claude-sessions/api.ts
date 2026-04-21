@@ -21,7 +21,11 @@ export function setPricing(p: Pricing): void {
 export const api = new Hono();
 
 api.get('/', async (c) => {
-  const sessions = await listRecentSessions({ officeDays: OFFICE_DAYS }, { pricing });
+  const nowMs = Date.now();
+  const sessions = await listRecentSessions(
+    { officeDays: OFFICE_DAYS },
+    { pricing, now: () => nowMs },
+  );
   const stats = sessions.reduce(
     (acc, s) => {
       acc.count++;
@@ -44,7 +48,7 @@ api.get('/', async (c) => {
       pricingMissing: false,
     },
   );
-  const cutoffAt = officeDayCutoff(new Date(), OFFICE_DAYS).toISOString();
+  const cutoffAt = officeDayCutoff(new Date(nowMs), OFFICE_DAYS).toISOString();
   return c.json(
     ok({
       sessions,
