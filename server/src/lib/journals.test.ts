@@ -300,7 +300,9 @@ date: 2026-04-20
     const deps: Deps = {
       home: '/home/u',
       readFile: async () => {
-        const err = new Error("ENOENT: no such file or directory, open 'foo'") as NodeJS.ErrnoException;
+        const err = new Error(
+          "ENOENT: no such file or directory, open 'foo'",
+        ) as NodeJS.ErrnoException;
         err.code = 'ENOENT';
         throw err;
       },

@@ -66,14 +66,23 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.body h1, .body h2, .body h3, .body h4 {
+.body h1,
+.body h2,
+.body h3,
+.body h4 {
   color: var(--pink);
   margin-top: 12px;
   margin-bottom: 6px;
 }
-.body h1 { font-size: 16px; }
-.body h2 { font-size: 14px; }
-.body h3 { font-size: 13px; }
+.body h1 {
+  font-size: 16px;
+}
+.body h2 {
+  font-size: 14px;
+}
+.body h3 {
+  font-size: 13px;
+}
 .body code {
   background: rgba(0, 240, 255, 0.06);
   padding: 1px 4px;
@@ -91,7 +100,8 @@
   background: transparent;
   padding: 0;
 }
-.body ul, .body ol {
+.body ul,
+.body ol {
   padding-left: 20px;
   margin: 6px 0;
 }
@@ -135,7 +145,8 @@
   margin: 8px 0;
   font-size: 12px;
 }
-.body th, .body td {
+.body th,
+.body td {
   border: 1px solid var(--fg-dim);
   padding: 4px 8px;
 }

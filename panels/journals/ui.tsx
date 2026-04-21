@@ -32,7 +32,8 @@ const JournalBody = ({ tier, id }: { tier: Tier; id: string }) => {
   });
   if (isLoading) return <div className={s.bodyLoading}>loading…</div>;
   if (error) return <div className={s.bodyError}>{(error as Error).message}</div>;
-  if (!data?.body || data.body.trim() === '') return <div className={s.bodyEmpty}>(empty journal)</div>;
+  if (!data?.body || data.body.trim() === '')
+    return <div className={s.bodyEmpty}>(empty journal)</div>;
   return (
     <div className={s.body}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.body}</ReactMarkdown>
