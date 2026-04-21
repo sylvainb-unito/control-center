@@ -261,3 +261,85 @@ body
     expect(readCalls).toBe(2);
   });
 });
+
+describe('readJournalBody', () => {
+  type Deps = NonNullable<Parameters<typeof import('./journals').readJournalBody>[2]>;
+
+  test('strips frontmatter and returns markdown body', async () => {
+    const { readJournalBody } = await import('./journals');
+    const deps: Deps = {
+      home: '/home/u',
+      readFile: async () => `---
+date: 2026-04-20
+session: 1
+---
+
+## Completed
+- Did stuff
+`,
+    };
+    const body = await readJournalBody('daily', '2026-04-20', deps);
+    expect(body).toBe('\n## Completed\n- Did stuff\n');
+  });
+
+  test('returns empty string for body-less journal', async () => {
+    const { readJournalBody } = await import('./journals');
+    const deps: Deps = {
+      home: '/home/u',
+      readFile: async () => `---
+date: 2026-04-20
+---
+`,
+    };
+    const body = await readJournalBody('daily', '2026-04-20', deps);
+    expect(body).toBe('');
+  });
+
+  test('throws JournalNotFoundError on ENOENT', async () => {
+    const { readJournalBody, JournalNotFoundError } = await import('./journals');
+    const deps: Deps = {
+      home: '/home/u',
+      readFile: async () => {
+        const err = new Error("ENOENT: no such file or directory, open 'foo'") as NodeJS.ErrnoException;
+        err.code = 'ENOENT';
+        throw err;
+      },
+    };
+    await expect(readJournalBody('daily', 'missing', deps)).rejects.toBeInstanceOf(
+      JournalNotFoundError,
+    );
+  });
+
+  test('throws JournalReadError on other filesystem errors', async () => {
+    const { readJournalBody, JournalReadError } = await import('./journals');
+    const deps: Deps = {
+      home: '/home/u',
+      readFile: async () => {
+        const err = new Error('EACCES: permission denied') as NodeJS.ErrnoException;
+        err.code = 'EACCES';
+        throw err;
+      },
+    };
+    await expect(readJournalBody('daily', '2026-04-20', deps)).rejects.toBeInstanceOf(
+      JournalReadError,
+    );
+  });
+
+  test('resolves path inside the correct tier directory', async () => {
+    const { readJournalBody } = await import('./journals');
+    const calls: string[] = [];
+    const deps: Deps = {
+      home: '/home/u',
+      readFile: async (p: string) => {
+        calls.push(p);
+        return `---
+type: weekly
+---
+hi
+`;
+      },
+    };
+    await readJournalBody('weekly', '2026-W17', deps);
+    expect(calls).toEqual(['/home/u/.claude/journals/weekly/2026-W17.md']);
+  });
+});

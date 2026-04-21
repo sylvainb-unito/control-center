@@ -135,3 +135,47 @@ export async function listJournals(deps: ListDeps = {}): Promise<ListResponse> {
 
   return result;
 }
+
+export class JournalNotFoundError extends Error {
+  readonly code = 'JOURNAL_NOT_FOUND';
+  constructor(message: string) {
+    super(message);
+    this.name = 'JournalNotFoundError';
+  }
+}
+
+export class JournalReadError extends Error {
+  readonly code = 'READ_FAILED';
+  constructor(message: string) {
+    super(message);
+    this.name = 'JournalReadError';
+  }
+}
+
+export type ReadDeps = {
+  home?: string;
+  readFile?: (p: string) => Promise<string>;
+};
+
+export async function readJournalBody(
+  tier: Tier,
+  id: string,
+  deps: ReadDeps = {},
+): Promise<string> {
+  const home = deps.home ?? os.homedir();
+  const readFile = deps.readFile ?? defaultReadFile;
+  const filePath = path.join(home, '.claude', 'journals', tier, `${id}.md`);
+  let raw: string;
+  try {
+    raw = await readFile(filePath);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e?.code === 'ENOENT') {
+      throw new JournalNotFoundError(`journal not found: ${tier}/${id}`);
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn({ tier, id, err: msg }, 'journal read failed');
+    throw new JournalReadError(msg.slice(0, 200));
+  }
+  return matter(raw).content;
+}
