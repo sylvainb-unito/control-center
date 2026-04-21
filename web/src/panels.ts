@@ -1,4 +1,6 @@
 import type { PanelMeta, PanelUI } from '@cc/shared';
+import { meta as aiNewsMeta } from '../../panels/ai-news/meta';
+import { UI as aiNewsUI } from '../../panels/ai-news/ui';
 import { meta as braindumpMeta } from '../../panels/braindump/meta';
 import { UI as braindumpUI } from '../../panels/braindump/ui';
 import { meta as sessionsMeta } from '../../panels/claude-sessions/meta';
@@ -21,4 +23,5 @@ export const panels: PanelEntry[] = [
   { meta: sessionsMeta, UI: sessionsUI },
   { meta: journalsMeta, UI: journalsUI },
   { meta: braindumpMeta, UI: braindumpUI },
+  { meta: aiNewsMeta, UI: aiNewsUI },
 ];
