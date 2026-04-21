@@ -136,6 +136,14 @@ export const UI = () => {
 
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [flashingId, setFlashingId] = useState<string | null>(null);
+  const [pendingOpen, setPendingOpen] = useState<MergedSession | null>(null);
+
+  const closePending = () => setPendingOpen(null);
+  const confirmOpen = () => {
+    if (!pendingOpen) return;
+    open.mutate({ sessionId: pendingOpen.sessionId, cwd: pendingOpen.cwd });
+    setPendingOpen(null);
+  };
 
   const open = useMutation({
     mutationFn: async (args: OpenArgs) =>
@@ -173,11 +181,8 @@ export const UI = () => {
     ]
       .filter(Boolean)
       .join(' ');
-    const confirmAndOpen = () => {
-      if (!window.confirm(`Resume ${row.project} in a new Ghostty tab?`)) return;
-      open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
-    };
-    const onClick = row.isLive ? undefined : confirmAndOpen;
+    const requestOpen = () => setPendingOpen(row);
+    const onClick = row.isLive ? undefined : requestOpen;
     return (
       <div key={row.sessionId}>
         <div
@@ -186,7 +191,7 @@ export const UI = () => {
           onKeyDown={(e) => {
             if (!row.isLive && (e.key === 'Enter' || e.key === ' ')) {
               e.preventDefault();
-              confirmAndOpen();
+              requestOpen();
             }
           }}
           // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
@@ -268,6 +273,38 @@ export const UI = () => {
             );
           })()}
       </div>
+      {pendingOpen && (
+        <div
+          className={s.modal}
+          onClick={closePending}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') closePending();
+          }}
+          // biome-ignore lint/a11y/useSemanticElements: native <dialog> manages its own open state; div overlay keeps click-outside-to-close simple.
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div
+            className={s.modalBody}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="document"
+          >
+            <p>
+              Resume <strong>{pendingOpen.project}</strong> in a new Ghostty tab?
+            </p>
+            <div className={s.modalActions}>
+              <button type="button" className={s.modalCancel} onClick={closePending}>
+                cancel
+              </button>
+              <button type="button" className={s.modalConfirm} onClick={confirmOpen}>
+                open
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
