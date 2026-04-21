@@ -196,12 +196,9 @@ export const UI = () => {
               : buildRowTooltip(row)
           }
         >
-          {row.isLive && <span className={s.liveDot} aria-hidden="true" />}
-          {row.isLive && <span className={s.liveBadge}>LIVE</span>}
           <span className={s.project}>{row.project}</span>
-          <span className={s.meta}>
-            {row.gitBranch ?? '—'} · {humanizeRelative(row.lastActivityAt, nowDate)}
-          </span>
+          <span className={s.branch} title={row.gitBranch ?? undefined}>{row.gitBranch ?? '—'}</span>
+          <span className={s.lastActive}>{humanizeRelative(row.lastActivityAt, nowDate)}</span>
           <span className={s.tokens}>{formatTokens(row.tokens)}</span>
         </div>
         {rowError[row.sessionId] && (

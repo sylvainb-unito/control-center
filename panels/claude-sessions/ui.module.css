@@ -32,9 +32,19 @@
   font-weight: bold;
   min-width: 120px;
 }
-.meta {
+.branch {
   color: var(--fg-dim);
   font-size: 11px;
+  min-width: 200px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lastActive {
+  color: var(--fg-dim);
+  font-size: 11px;
+  min-width: 70px;
 }
 .tokens {
   color: var(--fg-dim);
@@ -53,23 +63,6 @@
   cursor: not-allowed;
   opacity: 0.8;
 }
-.liveDot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 6px var(--success);
-  animation: livePulse 1.2s ease-in-out infinite;
-  margin-right: 6px;
-}
-.liveBadge {
-  color: var(--success);
-  font-size: 11px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  margin-right: 8px;
-}
 .rowError {
   color: var(--danger);
   font-size: 11px;
@@ -77,15 +70,6 @@
 }
 .rowFlash {
   animation: rowFlash 600ms ease-out;
-}
-@keyframes livePulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
 }
 @keyframes rowFlash {
   0% {
