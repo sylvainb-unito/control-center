@@ -22,10 +22,14 @@ function displayRepo(repo: string): string {
   return repo.startsWith('unitoio/') ? repo.slice('unitoio/'.length) : repo;
 }
 
-function Row({ pr }: { pr: PR }) {
+function Row({ pr, showRepo }: { pr: PR; showRepo: boolean }) {
   return (
     <div className="panel-row">
-      <span className={s.repo}>{displayRepo(pr.repo)}</span>
+      {showRepo && (
+        <span className={s.repo} title={displayRepo(pr.repo)}>
+          {displayRepo(pr.repo)}
+        </span>
+      )}
       <span className={s.num}>#{pr.number}</span>
       <a className={s.title} href={pr.url} target="_blank" rel="noopener noreferrer">
         {pr.title}
@@ -155,7 +159,11 @@ export const UI = () => {
               </div>
               {filteredAuthored.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredAuthored.map((pr) => (
-                <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
+                <Row
+                  key={`${pr.repo}-${pr.number}`}
+                  pr={pr}
+                  showRepo={activeRepo === '__all__'}
+                />
               ))}
             </div>
             <div className={s.section}>
@@ -167,7 +175,11 @@ export const UI = () => {
               </div>
               {filteredReview.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredReview.map((pr) => (
-                <Row key={`${pr.repo}-${pr.number}`} pr={pr} />
+                <Row
+                  key={`${pr.repo}-${pr.number}`}
+                  pr={pr}
+                  showRepo={activeRepo === '__all__'}
+                />
               ))}
             </div>
           </>

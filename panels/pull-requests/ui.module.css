@@ -19,11 +19,18 @@
   color: var(--fg-dim);
   font-family: "VT323", monospace;
   font-size: 14px;
-  min-width: 80px;
+  width: 160px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .num {
   color: var(--pink);
   font-weight: bold;
+  width: 60px;
+  flex-shrink: 0;
+  text-align: right;
 }
 .title {
   flex: 1;
