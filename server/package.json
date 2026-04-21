@@ -6,7 +6,8 @@
   "exports": {
     "./envelope": "./src/envelope.ts",
     "./lib/git": "./src/lib/git.ts",
-    "./lib/gh": "./src/lib/gh.ts"
+    "./lib/gh": "./src/lib/gh.ts",
+    "./lib/sessions": "./src/lib/sessions.ts"
   },
   "scripts": {
     "dev": "SERVE_STATIC=false PORT=7778 tsx watch src/main.ts",
