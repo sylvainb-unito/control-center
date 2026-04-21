@@ -228,6 +228,41 @@ x`,
   });
 });
 
+describe('processPending — timeout threading', () => {
+  test('runClaude receives DEFAULT_TIMEOUT_MS when deps.timeoutMs is omitted', async () => {
+    const { processPending, _resetForTests } = await import('./braindump-processor');
+    _resetForTests();
+    const fs = makeFakeFs({
+      a7f3: `---
+id: a7f3
+capturedAt: 2026-04-21T14:32:08.412Z
+status: new
+---
+x`,
+    });
+    let capturedTimeoutMs: unknown;
+    const runClaude = vi.fn(async (args: { timeoutMs: unknown }) => {
+      capturedTimeoutMs = args.timeoutMs;
+      return JSON.stringify({
+        category: 'thought',
+        title: 't',
+        summary: 's',
+        tags: [],
+      });
+    });
+    await processPending({
+      home: fs.home,
+      readdir: fs.readdir,
+      readFile: fs.readFile,
+      writeFile: fs.writeFile,
+      runClaude,
+      now: () => new Date('2026-04-21T15:00:00.000Z'),
+      // NOTE: timeoutMs intentionally omitted
+    });
+    expect(capturedTimeoutMs).toBe(60_000);
+  });
+});
+
 describe('processPending — reentrancy', () => {
   test('concurrent calls: second one no-ops while first is running', async () => {
     const { processPending, _resetForTests } = await import('./braindump-processor');
