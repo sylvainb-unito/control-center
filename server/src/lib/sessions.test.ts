@@ -533,7 +533,7 @@ describe('openSessionInGhostty', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.cmd).toBe('open');
     expect(calls[0]?.args).toEqual([
-      '-na',
+      '-a',
       'Ghostty',
       '--args',
       '--working-directory=/Users/u/Workspace/proj',

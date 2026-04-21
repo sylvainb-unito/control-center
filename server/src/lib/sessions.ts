@@ -294,7 +294,7 @@ export async function openSessionInGhostty(
     // -ilc on zsh loads .zshrc/.zprofile so `claude` resolves on PATH — ghostty's default `-e` goes through
     // /usr/bin/login which doesn't source shell init. sessionId is character-validated above.
     await runner('open', [
-      '-na',
+      '-a',
       'Ghostty',
       '--args',
       `--working-directory=${cwd}`,
