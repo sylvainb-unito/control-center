@@ -9,6 +9,8 @@ describe('listWorktrees', () => {
     const runner: Runner = async (cmd, args) => {
       calls.push({ cmd, args });
       const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /Users/u/Workspace/proj/.worktrees/feat-x\nbranch refs/heads/feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'abc1234\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -44,6 +46,7 @@ describe('listWorktrees', () => {
             lastCommitAt: '2026-04-15T10:00:00Z',
             mergedToMain: true,
             ageDays: 5,
+            orphan: false,
           },
         ],
       },
@@ -54,6 +57,8 @@ describe('listWorktrees', () => {
   test('falls back to master when main missing', async () => {
     const runner: Runner = async (_cmd, args) => {
       const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/feat-x\n', stderr: '' };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'aaa\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -82,6 +87,8 @@ describe('listWorktrees', () => {
   test('mergedToMain is false when neither main nor master exists', async () => {
     const runner: Runner = async (_cmd, args) => {
       const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/feat-x\n', stderr: '' };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'bbb\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -108,6 +115,8 @@ describe('listWorktrees', () => {
   test('dirty worktree sets dirty: true', async () => {
     const runner: Runner = async (_cmd, args) => {
       const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/feat-x\n', stderr: '' };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'ccc\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: ' M foo.txt\n', stderr: '' };
@@ -130,6 +139,8 @@ describe('listWorktrees', () => {
   test('hasUpstream is false when rev-list fails', async () => {
     const runner: Runner = async (_cmd, args) => {
       const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/feat-x\n', stderr: '' };
       if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
       if (joined.includes('rev-parse --short')) return { stdout: 'ddd\n', stderr: '' };
       if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
@@ -160,6 +171,74 @@ describe('listWorktrees', () => {
     const { listWorktrees } = await import('./git');
     const result = await listWorktrees({ runner, globber, now: () => 0 });
     expect(result).toEqual([]);
+  });
+
+  test('orphan detection: path not in worktree list gets orphan: true with zeroed fields', async () => {
+    // glob returns two paths; porcelain only lists one of them
+    const runner: Runner = async (_cmd, args) => {
+      const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/registered\nbranch refs/heads/feat/r\n', stderr: '' };
+      if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/r\n', stderr: '' };
+      if (joined.includes('rev-parse --short')) return { stdout: 'abc\n', stderr: '' };
+      if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
+      if (joined.includes('rev-list --left-right')) return { stdout: '0\t0\n', stderr: '' };
+      if (joined.includes('log -1 --format=%cI'))
+        return { stdout: '2026-04-19T10:00:00Z\n', stderr: '' };
+      if (joined.includes('branch --merged')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const globber = async () => [
+      '/w/proj/.worktrees/registered',
+      '/w/proj/.worktrees/orphan',
+    ];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({
+      runner,
+      globber,
+      now: () => Date.parse('2026-04-20T00:00:00Z'),
+    });
+
+    const worktrees = result[0]?.worktrees ?? [];
+    const registered = worktrees.find((wt) => wt.path.endsWith('registered'));
+    const orphan = worktrees.find((wt) => wt.path.endsWith('orphan'));
+
+    expect(registered).toMatchObject({ orphan: false, branch: 'feat/r', head: 'abc' });
+    expect(orphan).toMatchObject({
+      orphan: true,
+      branch: '',
+      head: '',
+      dirty: false,
+      ahead: 0,
+      behind: 0,
+      hasUpstream: false,
+      lastCommitAt: '',
+      mergedToMain: false,
+    });
+  });
+
+  test('non-orphan path has orphan: false (field present on all entries)', async () => {
+    const runner: Runner = async (_cmd, args) => {
+      const joined = args.join(' ');
+      if (joined.includes('worktree list --porcelain'))
+        return { stdout: 'worktree /w/proj/.worktrees/feat-x\n', stderr: '' };
+      if (joined.includes('rev-parse --abbrev-ref')) return { stdout: 'feat/x\n', stderr: '' };
+      if (joined.includes('rev-parse --short')) return { stdout: 'abc\n', stderr: '' };
+      if (joined.includes('status --porcelain')) return { stdout: '', stderr: '' };
+      if (joined.includes('rev-list --left-right')) return { stdout: '0\t0\n', stderr: '' };
+      if (joined.includes('log -1 --format=%cI'))
+        return { stdout: '2026-04-19T10:00:00Z\n', stderr: '' };
+      if (joined.includes('branch --merged')) return { stdout: '', stderr: '' };
+      return { stdout: '', stderr: '' };
+    };
+    const globber = async () => ['/w/proj/.worktrees/feat-x'];
+    const { listWorktrees } = await import('./git');
+    const result = await listWorktrees({
+      runner,
+      globber,
+      now: () => Date.parse('2026-04-20T00:00:00Z'),
+    });
+    expect(result[0]?.worktrees[0]).toHaveProperty('orphan', false);
   });
 });
 
@@ -340,5 +419,39 @@ describe('removeWorktree', () => {
     expect(result).toEqual({ branchDeleted: null });
     expect(calls.some((a) => a.includes('remove'))).toBe(true);
     expect(calls.some((a) => a.includes('-D'))).toBe(false);
+  });
+
+  test('orphan: uses injected rm, never calls git status or worktree remove', async () => {
+    const gitCalls: string[][] = [];
+    const runner: Runner = async (_cmd, args) => {
+      gitCalls.push(args);
+      return { stdout: '', stderr: '' };
+    };
+    let rmCalledWith: string | null = null;
+    const rm = async (p: string) => {
+      rmCalledWith = p;
+    };
+    const { removeWorktree } = await import('./git');
+    const result = await removeWorktree('/w/proj/.worktrees/orphan', {
+      force: false,
+      orphan: true,
+      runner,
+      rm,
+    });
+    expect(result).toEqual({ branchDeleted: null });
+    expect(rmCalledWith).toBe('/w/proj/.worktrees/orphan');
+    expect(gitCalls.some((a) => a.includes('status'))).toBe(false);
+    expect(gitCalls.some((a) => a.includes('remove'))).toBe(false);
+  });
+
+  test('orphan: rm failure throws REMOVE_FAILED', async () => {
+    const runner: Runner = async () => ({ stdout: '', stderr: '' });
+    const rm = async (_p: string) => {
+      throw new Error('permission denied');
+    };
+    const { removeWorktree } = await import('./git');
+    await expect(
+      removeWorktree('/w/proj/.worktrees/orphan', { force: false, orphan: true, runner, rm }),
+    ).rejects.toMatchObject({ code: 'REMOVE_FAILED' });
   });
 });

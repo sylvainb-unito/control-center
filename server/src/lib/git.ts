@@ -1,4 +1,5 @@
 import { execFile as execFileCb } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -23,6 +24,7 @@ export type Worktree = {
   lastCommitAt: string;
   mergedToMain: boolean;
   ageDays: number;
+  orphan: boolean;
 };
 
 export type Repo = { name: string; path: string; worktrees: Worktree[] };
@@ -38,6 +40,23 @@ type Deps = {
   now?: () => number;
   home?: string;
 };
+
+async function registeredWorktreePaths(runner: Runner, repoPath: string): Promise<Set<string>> {
+  try {
+    const { stdout } = await runner('git', ['-C', repoPath, 'worktree', 'list', '--porcelain']);
+    const paths = stdout
+      .split('\n')
+      .filter((line) => line.startsWith('worktree '))
+      .map((line) => line.slice('worktree '.length).trim());
+    return new Set(paths);
+  } catch (err) {
+    logger.warn(
+      { repoPath, err: (err as Error)?.message },
+      'git worktree list --porcelain failed; treating all worktrees as registered',
+    );
+    return new Set();
+  }
+}
 
 async function mergedBranches(runner: Runner, repoPath: string): Promise<Set<string>> {
   for (const base of ['main', 'master']) {
@@ -75,12 +94,46 @@ export async function listWorktrees(deps: Deps = {}): Promise<Repo[]> {
   const pattern = path.join(home, 'Workspace', '*', '.worktrees', '*');
   const paths = await globber(pattern);
 
-  type RepoWithMerged = Repo & { __merged: Set<string> };
+  type RepoWithMerged = Repo & { __merged: Set<string>; __registered: Set<string> };
   const repos = new Map<string, RepoWithMerged>();
 
   for (const wtPath of paths) {
     const repoPath = path.resolve(wtPath, '..', '..');
     const repoName = path.basename(repoPath);
+
+    // Ensure repo entry exists (with registered worktree paths from git worktree list --porcelain)
+    if (!repos.has(repoPath)) {
+      const merged = await mergedBranches(runner, repoPath);
+      const registered = await registeredWorktreePaths(runner, repoPath);
+      repos.set(repoPath, { name: repoName, path: repoPath, worktrees: [], __merged: merged, __registered: registered });
+    }
+
+    const repo = repos.get(repoPath)!;
+    const isOrphan = !repo.__registered.has(wtPath);
+
+    if (isOrphan) {
+      let ageDays = 0;
+      try {
+        const stat = await fs.promises.stat(wtPath);
+        ageDays = Math.round((now() - stat.mtimeMs) / 86_400_000);
+      } catch (err) {
+        logger.warn({ wtPath, err: (err as Error)?.message }, 'stat failed for orphan worktree');
+      }
+      repo.worktrees.push({
+        path: wtPath,
+        branch: '',
+        head: '',
+        dirty: false,
+        ahead: 0,
+        behind: 0,
+        hasUpstream: false,
+        lastCommitAt: '',
+        mergedToMain: false,
+        ageDays,
+        orphan: true,
+      });
+      continue;
+    }
 
     const [branch, head, status, lastCommit] = await Promise.all([
       runner('git', ['-C', wtPath, 'rev-parse', '--abbrev-ref', 'HEAD'])
@@ -151,13 +204,6 @@ export async function listWorktrees(deps: Deps = {}): Promise<Repo[]> {
     // Trade-off: a 13-hour-old commit rounds to 1 day, while 11-hour-old rounds to 0.
     const ageDays = lastCommit ? Math.round((now() - Date.parse(lastCommit)) / 86_400_000) : 0;
 
-    let repo = repos.get(repoPath);
-    if (!repo) {
-      const merged = await mergedBranches(runner, repoPath);
-      repo = { name: repoName, path: repoPath, worktrees: [], __merged: merged };
-      repos.set(repoPath, repo);
-    }
-
     repo.worktrees.push({
       path: wtPath,
       branch,
@@ -169,10 +215,11 @@ export async function listWorktrees(deps: Deps = {}): Promise<Repo[]> {
       lastCommitAt: lastCommit,
       mergedToMain: repo.__merged.has(branch),
       ageDays,
+      orphan: false,
     });
   }
 
-  return [...repos.values()].map(({ __merged: _ignored, ...r }) => r);
+  return [...repos.values()].map(({ __merged: _m, __registered: _r, ...r }) => r);
 }
 
 export class GitError extends Error {
@@ -191,10 +238,28 @@ export type RemoveWorktreeResult = {
 
 export async function removeWorktree(
   worktreePath: string,
-  opts: { force: boolean; deleteBranch?: boolean; runner?: Runner },
+  opts: {
+    force: boolean;
+    deleteBranch?: boolean;
+    runner?: Runner;
+    orphan?: boolean;
+    rm?: (p: string) => Promise<void>;
+  },
 ): Promise<RemoveWorktreeResult> {
   const runner = opts.runner ?? defaultRunner;
   const repoPath = path.resolve(worktreePath, '..', '..');
+
+  if (opts.orphan) {
+    const rmFn = opts.rm ?? ((p) => fs.promises.rm(p, { recursive: true, force: true }));
+    try {
+      await rmFn(worktreePath);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn({ worktreePath, err: msg }, 'rm -rf failed for orphan worktree');
+      throw new GitError('REMOVE_FAILED', msg.slice(0, 200));
+    }
+    return { branchDeleted: null };
+  }
 
   // Resolve branch name BEFORE removing the folder — git can't read a gone worktree.
   let branch: string | null = null;
