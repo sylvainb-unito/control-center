@@ -64,7 +64,7 @@ export const UI = () => {
   });
 
   const [search, setSearch] = useState('');
-  const [hideDrafts, setHideDrafts] = useState(false);
+  const [hideDrafts, setHideDrafts] = useState(true);
   const [activeRepo, setActiveRepo] = useState<string>('__all__');
 
   const { repos, filteredAuthored, filteredReview } = useMemo(() => {
