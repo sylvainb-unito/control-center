@@ -227,39 +227,42 @@ export const UI = () => {
             No sessions in the last {data.window.officeDays} office days.
           </p>
         )}
-        {data && data.sessions.length > 0 && (() => {
-          const mergedRows = mergeByProject(data.sessions);
-          const liveRows = mergedRows.filter((r) => r.isLive);
-          const otherRows = mergedRows.filter((r) => !r.isLive);
-          const showHeaders = liveRows.length > 0 && otherRows.length > 0;
-          return (
-            <>
-              <div className={s.statsStrip}>
-                <span>
-                  Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
-                  sessions · {formatNumber(data.stats.messageCount)} msgs
-                </span>
-                <span>
-                  {formatNumber(data.stats.tokens.input)} in /{' '}
-                  {formatNumber(data.stats.tokens.output)} out /{' '}
-                  {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
-                </span>
-              </div>
-              {liveRows.length > 0 && (
-                <>
-                  {showHeaders && <div className={s.sectionHeader}>Live</div>}
-                  {liveRows.map((row) => renderRow(row, now))}
-                </>
-              )}
-              {otherRows.length > 0 && (
-                <>
-                  {showHeaders && <div className={s.sectionHeader}>Recent</div>}
-                  {otherRows.map((row) => renderRow(row, now))}
-                </>
-              )}
-            </>
-          );
-        })()}
+        {data &&
+          data.sessions.length > 0 &&
+          (() => {
+            const mergedRows = mergeByProject(data.sessions);
+            const liveRows = mergedRows.filter((r) => r.isLive);
+            const otherRows = mergedRows.filter((r) => !r.isLive);
+            const showHeaders = liveRows.length > 0 && otherRows.length > 0;
+            return (
+              <>
+                <div className={s.statsStrip}>
+                  <span>
+                    Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
+                    sessions · {formatNumber(data.stats.messageCount)} msgs
+                  </span>
+                  <span>
+                    {formatNumber(data.stats.tokens.input)} in /{' '}
+                    {formatNumber(data.stats.tokens.output)} out /{' '}
+                    {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)}{' '}
+                    cache
+                  </span>
+                </div>
+                {liveRows.length > 0 && (
+                  <>
+                    {showHeaders && <div className={s.sectionHeader}>Live</div>}
+                    {liveRows.map((row) => renderRow(row, now))}
+                  </>
+                )}
+                {otherRows.length > 0 && (
+                  <>
+                    {showHeaders && <div className={s.sectionHeader}>Recent</div>}
+                    {otherRows.map((row) => renderRow(row, now))}
+                  </>
+                )}
+              </>
+            );
+          })()}
       </div>
     </div>
   );
