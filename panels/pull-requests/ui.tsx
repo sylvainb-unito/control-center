@@ -36,7 +36,8 @@ function Row({ pr, showRepo }: { pr: PR; showRepo: boolean }) {
         href={pr.url}
         target="_blank"
         rel="noopener noreferrer"
-        title={pr.title}
+        aria-label={pr.title}
+        data-full={pr.title}
       >
         {pr.title}
       </a>

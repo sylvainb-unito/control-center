@@ -38,10 +38,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  position: relative;
 }
 .title:hover {
   color: var(--cyan);
   text-decoration: underline;
+}
+.title:hover::after {
+  content: attr(data-full);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  background: var(--bg-mid);
+  color: var(--fg);
+  padding: 4px 8px;
+  border: 1px solid var(--pink);
+  border-radius: 3px;
+  white-space: normal;
+  font-size: 11px;
+  z-index: 100;
+  box-shadow: var(--glow-pink);
+  pointer-events: none;
+  max-width: 500px;
 }
 .badges {
   display: flex;
