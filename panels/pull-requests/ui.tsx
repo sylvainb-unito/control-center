@@ -31,7 +31,13 @@ function Row({ pr, showRepo }: { pr: PR; showRepo: boolean }) {
         </span>
       )}
       <span className={s.num}>#{pr.number}</span>
-      <a className={s.title} href={pr.url} target="_blank" rel="noopener noreferrer">
+      <a
+        className={s.title}
+        href={pr.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={pr.title}
+      >
         {pr.title}
       </a>
       <span className={s.badges}>
