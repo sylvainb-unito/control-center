@@ -142,6 +142,7 @@ raw text 2`;
     expect(result.processed[0]?.category).toBe('todo');
     expect(result.processed[0]?.title).toBe('Buy milk tonight');
     expect(result.processed[0]?.tags).toEqual(['home']);
+    expect(result.processed[0]?.processedAt).toBe('2026-04-21T15:00:00.000Z');
   });
 
   test('sorts each list newest-first by id (lexicographic)', async () => {

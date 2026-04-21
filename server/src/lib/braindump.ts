@@ -138,18 +138,20 @@ function coerceTags(v: unknown): string[] {
   return [];
 }
 
+function coerceTimestamp(v: unknown): string | null {
+  // gray-matter/js-yaml always parses bare ISO timestamps as Date objects —
+  // matter.stringify does not quote them. coerceTimestamp handles both cases.
+  if (typeof v === 'string') return v;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
+  return null;
+}
+
 function coerceFailure(v: unknown): FailureInfo | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const obj = v as Record<string, unknown>;
   if (typeof obj.attempts !== 'number') return undefined;
   if (typeof obj.lastError !== 'string') return undefined;
-  // gray-matter/js-yaml may parse bare ISO timestamps as Date objects
-  const lastAttemptAt =
-    typeof obj.lastAttemptAt === 'string'
-      ? obj.lastAttemptAt
-      : obj.lastAttemptAt instanceof Date && !Number.isNaN((obj.lastAttemptAt as Date).getTime())
-        ? (obj.lastAttemptAt as Date).toISOString()
-        : null;
+  const lastAttemptAt = coerceTimestamp(obj.lastAttemptAt);
   if (!lastAttemptAt) return undefined;
   return {
     attempts: obj.attempts,
@@ -158,20 +160,11 @@ function coerceFailure(v: unknown): FailureInfo | undefined {
   };
 }
 
-function coerceCapturedAt(v: unknown): string | null {
-  // gray-matter/js-yaml auto-parses bare ISO timestamps as Date objects;
-  // matter.stringify quotes them so re-parsed values are strings.
-  // Handle both cases.
-  if (typeof v === 'string') return v;
-  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
-  return null;
-}
-
 function parseSummary(filename: string, raw: string): EntrySummary | null {
   const parsed = matter(raw);
   const data = parsed.data as Record<string, unknown>;
   const id = typeof data.id === 'string' ? data.id : path.basename(filename, '.md');
-  const capturedAt = coerceCapturedAt(data.capturedAt);
+  const capturedAt = coerceTimestamp(data.capturedAt);
   const status = data.status;
   if (typeof status !== 'string' || !(STATUS_VALUES as string[]).includes(status)) return null;
   if (!capturedAt) return null;
@@ -187,7 +180,8 @@ function parseSummary(filename: string, raw: string): EntrySummary | null {
   if (typeof data.summary === 'string') summary.summary = data.summary;
   const tags = coerceTags(data.tags);
   if (tags.length > 0) summary.tags = tags;
-  if (typeof data.processedAt === 'string') summary.processedAt = data.processedAt;
+  const processedAt = coerceTimestamp(data.processedAt);
+  if (processedAt) summary.processedAt = processedAt;
   const failure = coerceFailure(data.failure);
   if (failure) summary.failure = failure;
   return summary;
