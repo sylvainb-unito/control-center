@@ -1,6 +1,8 @@
 import type { PanelMeta, PanelUI } from '@cc/shared';
 import { meta as sessionsMeta } from '../../panels/claude-sessions/meta';
 import { UI as sessionsUI } from '../../panels/claude-sessions/ui';
+import { meta as journalsMeta } from '../../panels/journals/meta';
+import { UI as journalsUI } from '../../panels/journals/ui';
 import { meta as prsMeta } from '../../panels/pull-requests/meta';
 import { UI as prsUI } from '../../panels/pull-requests/ui';
 import { meta as shortcutsMeta } from '../../panels/shortcuts/meta';
@@ -15,4 +17,5 @@ export const panels: PanelEntry[] = [
   { meta: prsMeta, UI: prsUI },
   { meta: shortcutsMeta, UI: shortcutsUI },
   { meta: sessionsMeta, UI: sessionsUI },
+  { meta: journalsMeta, UI: journalsUI },
 ];
