@@ -30,13 +30,17 @@
 .project {
   color: var(--cyan);
   font-weight: bold;
-  min-width: 120px;
+  width: 220px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .branch {
   color: var(--fg-dim);
   font-size: 11px;
-  min-width: 200px;
-  max-width: 280px;
+  width: 280px;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -44,7 +48,8 @@
 .lastActive {
   color: var(--fg-dim);
   font-size: 11px;
-  min-width: 70px;
+  width: 90px;
+  flex-shrink: 0;
 }
 .tokens {
   color: var(--fg-dim);

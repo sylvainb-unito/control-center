@@ -196,7 +196,9 @@ export const UI = () => {
               : buildRowTooltip(row)
           }
         >
-          <span className={s.project}>{row.project}</span>
+          <span className={s.project} title={row.project}>
+            {row.project}
+          </span>
           <span className={s.branch} title={row.gitBranch ?? undefined}>
             {row.gitBranch ?? '—'}
           </span>
