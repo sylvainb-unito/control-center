@@ -339,11 +339,17 @@ export async function openSessionInGhostty(
   cwd: string,
   opts: { runner?: Runner } = {},
 ): Promise<void> {
+  // sessionId is interpolated into a zsh `-ilc` payload below — the only place in this
+  // codebase where a filesystem-derived string reaches a shell-parsed context. Enforce
+  // a tight character set even though session filenames are UUIDs in practice.
+  if (!/^[A-Za-z0-9-]+$/.test(sessionId)) {
+    throw new SpawnError(`unsafe sessionId: ${sessionId.slice(0, 40)}`);
+  }
   const runner = opts.runner ?? defaultRunner;
   try {
     // execFile passes args directly to the binary (no shell parsing), so cwd doesn't need shell escaping.
     // -ilc on zsh loads .zshrc/.zprofile so `claude` resolves on PATH — ghostty's default `-e` goes through
-    // /usr/bin/login which doesn't source shell init. sessionId is a UUID (safe in a shell command string).
+    // /usr/bin/login which doesn't source shell init. sessionId is character-validated above.
     await runner('open', [
       '-na',
       'Ghostty',

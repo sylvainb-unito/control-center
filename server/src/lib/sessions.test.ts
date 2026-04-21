@@ -649,4 +649,17 @@ describe('openSessionInGhostty', () => {
       message: 'x'.repeat(200),
     });
   });
+
+  test('rejects sessionIds with shell metacharacters before spawning', async () => {
+    const { openSessionInGhostty, SpawnError } = await import('./sessions');
+    let called = false;
+    const runner = async () => {
+      called = true;
+      return { stdout: '', stderr: '' };
+    };
+    await expect(openSessionInGhostty('abc; rm -rf /', '/p', { runner })).rejects.toBeInstanceOf(
+      SpawnError,
+    );
+    expect(called).toBe(false);
+  });
 });
