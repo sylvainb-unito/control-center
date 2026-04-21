@@ -18,10 +18,14 @@ function reviewBadge(d: PR['reviewDecision']) {
   return null;
 }
 
+function displayRepo(repo: string): string {
+  return repo.startsWith('unito/') ? repo.slice('unito/'.length) : repo;
+}
+
 function Row({ pr }: { pr: PR }) {
   return (
     <div className="panel-row">
-      <span className={s.repo}>{pr.repo}</span>
+      <span className={s.repo}>{displayRepo(pr.repo)}</span>
       <span className={s.num}>#{pr.number}</span>
       <a className={s.title} href={pr.url} target="_blank" rel="noopener noreferrer">
         {pr.title}
@@ -38,14 +42,14 @@ function Row({ pr }: { pr: PR }) {
 type Filters = {
   search: string;
   hideDrafts: boolean;
-  hiddenRepos: Set<string>;
+  activeRepo: string;
 };
 
 function apply(prs: PR[], f: Filters): PR[] {
   const q = f.search.trim().toLowerCase();
   return prs.filter((pr) => {
     if (f.hideDrafts && pr.isDraft) return false;
-    if (f.hiddenRepos.has(pr.repo)) return false;
+    if (f.activeRepo !== '__all__' && pr.repo !== f.activeRepo) return false;
     if (q && !pr.title.toLowerCase().includes(q) && !pr.repo.toLowerCase().includes(q)) {
       return false;
     }
@@ -61,13 +65,13 @@ export const UI = () => {
 
   const [search, setSearch] = useState('');
   const [hideDrafts, setHideDrafts] = useState(false);
-  const [hiddenRepos, setHiddenRepos] = useState<Set<string>>(new Set());
+  const [activeRepo, setActiveRepo] = useState<string>('__all__');
 
   const { repos, filteredAuthored, filteredReview } = useMemo(() => {
     if (!data) {
       return { repos: [] as string[], filteredAuthored: [] as PR[], filteredReview: [] as PR[] };
     }
-    const filters: Filters = { search, hideDrafts, hiddenRepos };
+    const filters: Filters = { search, hideDrafts, activeRepo };
     const all = [...data.authored, ...data.reviewRequested];
     const uniqueRepos = [...new Set(all.map((p) => p.repo))].sort();
     return {
@@ -75,24 +79,14 @@ export const UI = () => {
       filteredAuthored: apply(data.authored, filters),
       filteredReview: apply(data.reviewRequested, filters),
     };
-  }, [data, search, hideDrafts, hiddenRepos]);
-
-  const toggleRepo = (repo: string) => {
-    setHiddenRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(repo)) next.delete(repo);
-      else next.add(repo);
-      return next;
-    });
-  };
+  }, [data, search, hideDrafts, activeRepo]);
 
   const clearFilters = () => {
     setSearch('');
     setHideDrafts(false);
-    setHiddenRepos(new Set());
   };
 
-  const hasFilters = search !== '' || hideDrafts || hiddenRepos.size > 0;
+  const hasFilters = search !== '' || hideDrafts;
 
   return (
     <div className="panel">
@@ -107,6 +101,27 @@ export const UI = () => {
         {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
         {data && (
           <>
+            {repos.length > 0 && (
+              <div className={s.tabs}>
+                <button
+                  type="button"
+                  className={`${s.tab} ${activeRepo === '__all__' ? s.tabActive : ''}`}
+                  onClick={() => setActiveRepo('__all__')}
+                >
+                  All
+                </button>
+                {repos.map((repo) => (
+                  <button
+                    key={repo}
+                    type="button"
+                    className={`${s.tab} ${activeRepo === repo ? s.tabActive : ''}`}
+                    onClick={() => setActiveRepo(repo)}
+                  >
+                    {displayRepo(repo)}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className={s.filters}>
               <input
                 className={s.search}
@@ -129,21 +144,6 @@ export const UI = () => {
                 </button>
               )}
             </div>
-            {repos.length > 0 && (
-              <div className={s.repoChips}>
-                {repos.map((repo) => (
-                  <button
-                    key={repo}
-                    type="button"
-                    className={`${s.chip} ${hiddenRepos.has(repo) ? s.chipHidden : ''}`}
-                    onClick={() => toggleRepo(repo)}
-                    title={hiddenRepos.has(repo) ? 'click to include' : 'click to hide'}
-                  >
-                    {repo}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className={s.section}>
               <div className={s.sectionHead}>
                 Yours ({filteredAuthored.length}
