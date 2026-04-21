@@ -167,6 +167,13 @@ describe('ai-news CRUD', () => {
     expect(await readState({ home })).toEqual({ isRunning: true, lastRunAt: 'x' });
   });
 
+  test('readState recovers from corrupt state file', async () => {
+    const dir = path.join(home, '.claude', 'ai-news');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'state.json'), '{not-json');
+    expect(await readState({ home })).toEqual({ isRunning: false });
+  });
+
   test('listStarred returns only starred items with digestDate, newest first', async () => {
     const dir = path.join(home, '.claude', 'ai-news', 'digests');
     fs.mkdirSync(dir, { recursive: true });

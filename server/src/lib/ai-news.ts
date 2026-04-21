@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { logger } from '../logger';
 
 // ---- Types ------------------------------------------------------------
 
@@ -177,8 +178,12 @@ export async function pruneOldDigests(
       const hasStarred = digest.items.some((it) => it.starred === true);
       if (hasStarred) continue;
       await fs.promises.unlink(digestPath(home, date));
-    } catch {
+    } catch (err) {
       // swallow per-file errors so one broken file doesn't abort the sweep
+      logger.warn(
+        { date, err: (err as Error).message },
+        'ai-news prune: skipping unreadable digest',
+      );
     }
   }
 }
@@ -195,11 +200,16 @@ export async function readState(deps: DirDeps = {}): Promise<AiNewsState> {
     if (e?.code === 'ENOENT') return { isRunning: false };
     throw err;
   }
-  const parsed = JSON.parse(raw) as Partial<AiNewsState>;
-  return {
-    ...parsed,
-    isRunning: Boolean(parsed.isRunning),
-  };
+  try {
+    const parsed = JSON.parse(raw) as Partial<AiNewsState>;
+    return {
+      ...parsed,
+      isRunning: Boolean(parsed.isRunning),
+    };
+  } catch {
+    // corrupt state file — treat as fresh
+    return { isRunning: false };
+  }
 }
 
 export async function writeState(state: AiNewsState, deps: DirDeps = {}): Promise<void> {
@@ -219,7 +229,11 @@ export async function listStarred(
     let digest: AiNewsDigest;
     try {
       digest = await readDigest(date, deps);
-    } catch {
+    } catch (err) {
+      logger.warn(
+        { date, err: (err as Error).message },
+        'ai-news listStarred: skipping unreadable digest',
+      );
       continue;
     }
     for (const item of digest.items) {
