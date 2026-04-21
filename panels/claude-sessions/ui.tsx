@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { fetchJson } from '../../web/src/lib/fetchJson';
 import type { ListResponse, SessionSummary } from './types';
 import s from './ui.module.css';
 
 const QK = ['claude-sessions'] as const;
+const LIVE_POLL_MS = 30_000;
 
 function humanizeDuration(ms: number): string {
   const mins = Math.round(ms / 60_000);
@@ -59,10 +61,41 @@ function formatUsd(n: number): string {
   return `~$${n.toFixed(2)}`;
 }
 
+type OpenArgs = { sessionId: string; cwd: string };
+
 export const UI = () => {
+  const qc = useQueryClient();
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
     queryKey: QK,
     queryFn: () => fetchJson<ListResponse>('/api/claude-sessions'),
+    staleTime: 30_000,
+    refetchInterval: (q) => {
+      const latest = q.state.data as ListResponse | undefined;
+      return latest?.sessions.some((row) => row.isLive) ? LIVE_POLL_MS : false;
+    },
+  });
+
+  const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [flashingId, setFlashingId] = useState<string | null>(null);
+
+  const open = useMutation({
+    mutationFn: async (args: OpenArgs) =>
+      fetchJson<{ opened: true }>('/api/claude-sessions/open', {
+        method: 'POST',
+        body: JSON.stringify(args),
+      }),
+    onSuccess: (_data, args) => {
+      setRowError((prev) => {
+        const { [args.sessionId]: _drop, ...rest } = prev;
+        return rest;
+      });
+      setFlashingId(args.sessionId);
+      setTimeout(() => setFlashingId(null), 700);
+      qc.invalidateQueries({ queryKey: QK });
+    },
+    onError: (err, args) => {
+      setRowError((prev) => ({ ...prev, [args.sessionId]: (err as Error).message }));
+    },
   });
 
   return (
@@ -96,17 +129,50 @@ export const UI = () => {
             {groupByDay(data.sessions).map((group) => (
               <div key={group.label}>
                 <div className={s.dayHeader}>{group.label}</div>
-                {group.rows.map((row) => (
-                  <div key={row.sessionId} className={s.row}>
-                    <span className={s.project} title={row.cwd}>
-                      {row.project}
-                    </span>
-                    <span className={s.meta}>
-                      {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} · {humanizeDuration(row.durationMs)}
-                    </span>
-                    <span className={s.msgs}>{row.messageCount} msgs</span>
-                  </div>
-                ))}
+                {group.rows.map((row) => {
+                  const rowClassNames = [
+                    s.row,
+                    row.isLive ? s.rowLive : s.rowClickable,
+                    flashingId === row.sessionId ? s.rowFlash : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
+                  const onClick = row.isLive
+                    ? undefined
+                    : () => open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+                  const title = row.isLive
+                    ? 'session open — switch to it manually (cmd-`)'
+                    : row.cwd;
+                  return (
+                    <div key={row.sessionId}>
+                      <div
+                        className={rowClassNames}
+                        onClick={onClick}
+                        onKeyDown={(e) => {
+                          if (!row.isLive && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+                          }
+                        }}
+                        role="button"
+                        tabIndex={row.isLive ? -1 : 0}
+                        aria-disabled={row.isLive}
+                        title={title}
+                      >
+                        {row.isLive && <span className={s.liveDot} aria-hidden="true" />}
+                        {row.isLive && <span className={s.liveBadge}>LIVE</span>}
+                        <span className={s.project}>{row.project}</span>
+                        <span className={s.meta}>
+                          {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} · {humanizeDuration(row.durationMs)}
+                        </span>
+                        <span className={s.msgs}>{row.messageCount} msgs</span>
+                      </div>
+                      {rowError[row.sessionId] && (
+                        <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </>
