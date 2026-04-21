@@ -131,7 +131,7 @@ export const UI = () => {
               <input
                 className={s.search}
                 type="search"
-                placeholder="filter by title or repo…"
+                placeholder="filter by title or id…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
