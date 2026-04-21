@@ -56,7 +56,7 @@ export function isValidLlmOutput(x: unknown): x is LlmOutput {
     const it = item as Record<string, unknown>;
     if (typeof it.title !== 'string') return false;
     if (typeof it.oneLineSummary !== 'string') return false;
-    if (typeof it.url !== 'string') return false;
+    if (typeof it.url !== 'string' || !/^https?:\/\//i.test(it.url)) return false;
     if (typeof it.category !== 'string') return false;
     if (!(CATEGORY_VALUES as readonly string[]).includes(it.category)) return false;
   }

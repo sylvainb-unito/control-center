@@ -52,6 +52,16 @@ describe('isValidLlmOutput', () => {
     expect(isValidLlmOutput(bad)).toBe(false);
   });
 
+  test('rejects item with javascript: url', () => {
+    const bad = { ...sample, items: [{ ...validItem, url: 'javascript:alert(1)' }] };
+    expect(isValidLlmOutput(bad)).toBe(false);
+  });
+
+  test('rejects item with non-http url', () => {
+    const bad = { ...sample, items: [{ ...validItem, url: 'ftp://example.com' }] };
+    expect(isValidLlmOutput(bad)).toBe(false);
+  });
+
   test('rejects non-object input', () => {
     expect(isValidLlmOutput(null)).toBe(false);
     expect(isValidLlmOutput('hello')).toBe(false);
