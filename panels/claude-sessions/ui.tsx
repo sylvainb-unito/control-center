@@ -95,6 +95,12 @@ export const UI = () => {
     },
     onError: (err, args) => {
       setRowError((prev) => ({ ...prev, [args.sessionId]: (err as Error).message }));
+      setTimeout(() => {
+        setRowError((prev) => {
+          const { [args.sessionId]: _drop, ...rest } = prev;
+          return rest;
+        });
+      }, 5_000);
     },
   });
 
@@ -174,6 +180,14 @@ export const UI = () => {
                           {humanizeDuration(row.durationMs)}
                         </span>
                         <span className={s.msgs}>{row.messageCount} msgs</span>
+                        {row.pricingMissing && (
+                          <span
+                            className={s.pricingMissing}
+                            title="This session used a model with no pricing rate configured — cost isn't reflected in the total."
+                          >
+                            —$
+                          </span>
+                        )}
                       </div>
                       {rowError[row.sessionId] && (
                         <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
