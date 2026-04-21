@@ -97,3 +97,8 @@
     background: transparent;
   }
 }
+.mergedCount {
+  color: var(--cyan);
+  font-size: 11px;
+  margin-left: 4px;
+}

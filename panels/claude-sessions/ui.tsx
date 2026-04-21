@@ -56,6 +56,67 @@ function dayHeaderLabel(iso: string, today: Date): string {
   return dStart.toISOString().slice(0, 10);
 }
 
+type MergedSession = SessionSummary & {
+  mergedCount: number; // 1 when not merged, >=2 when merged
+};
+
+function mergeByProjectAndDay(sessions: SessionSummary[]): MergedSession[] {
+  // Key = `${project}|${YYYY-MM-DD of lastActivityAt in local tz}`
+  const groups = new Map<string, SessionSummary[]>();
+  for (const session of sessions) {
+    const d = new Date(session.lastActivityAt);
+    d.setHours(0, 0, 0, 0);
+    const dayKey = d.toISOString().slice(0, 10);
+    const key = `${session.project}|${dayKey}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(session);
+    groups.set(key, arr);
+  }
+
+  const merged: MergedSession[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      const only = group[0];
+      if (!only) continue;
+      merged.push({ ...only, mergedCount: 1 });
+      continue;
+    }
+    // Sort desc by lastActivityAt — "latest" is index 0
+    const sorted = [...group].sort((a, b) =>
+      a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : 0,
+    );
+    const latest = sorted[0];
+    if (!latest) continue;
+    const summed = sorted.reduce(
+      (acc, s) => {
+        acc.messageCount += s.messageCount;
+        acc.tokens.input += s.tokens.input;
+        acc.tokens.output += s.tokens.output;
+        acc.tokens.cacheRead += s.tokens.cacheRead;
+        acc.tokens.cacheCreation += s.tokens.cacheCreation;
+        return acc;
+      },
+      {
+        messageCount: 0,
+        tokens: { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 },
+      },
+    );
+    merged.push({
+      ...latest,
+      messageCount: summed.messageCount,
+      tokens: summed.tokens,
+      isLive: sorted.some((s) => s.isLive),
+      mergedCount: sorted.length,
+    });
+  }
+
+  // Sort overall desc by lastActivityAt so groupByDay's downstream .sort().reverse() stays stable
+  merged.sort((a, b) =>
+    a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : 0,
+  );
+  return merged;
+}
+
 function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: SessionSummary[] }> {
   const today = new Date();
   const groups = new Map<string, SessionSummary[]>();
@@ -156,10 +217,10 @@ export const UI = () => {
                 {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
               </span>
             </div>
-            {groupByDay(data.sessions).map((group) => (
+            {groupByDay(mergeByProjectAndDay(data.sessions)).map((group) => (
               <div key={group.label}>
                 <div className={s.dayHeader}>{group.label}</div>
-                {group.rows.map((row) => {
+                {(group.rows as MergedSession[]).map((row) => {
                   const rowClassNames = [
                     s.row,
                     row.isLive ? s.rowLive : s.rowClickable,
@@ -198,7 +259,17 @@ export const UI = () => {
                           {humanizeRelative(row.lastActivityAt, now)}
                         </span>
                         <span className={s.tokens}>{formatTokens(row.tokens)}</span>
-                        <span className={s.msgs}>{row.messageCount} msgs</span>
+                        <span className={s.msgs}>
+                          {row.messageCount} msgs
+                          {row.mergedCount > 1 && (
+                            <span
+                              className={s.mergedCount}
+                              title={`${row.mergedCount} sessions merged`}
+                            >
+                              ×{row.mergedCount}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {rowError[row.sessionId] && (
                         <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
