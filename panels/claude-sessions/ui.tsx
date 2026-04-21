@@ -41,21 +41,6 @@ function formatTokens(tokens: {
   return `${(total / 1_000_000_000).toFixed(1)}G tok`;
 }
 
-function dayHeaderLabel(iso: string, today: Date): string {
-  const d = new Date(iso);
-  const dStart = new Date(d);
-  dStart.setHours(0, 0, 0, 0);
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((todayStart.getTime() - dStart.getTime()) / 86_400_000);
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays > 1 && diffDays < 7) {
-    return dStart.toLocaleDateString(undefined, { weekday: 'long' });
-  }
-  return dStart.toISOString().slice(0, 10);
-}
-
 type MergedSession = SessionSummary & {
   mergedCount: number; // 1 when not merged, >=2 when merged
 };
@@ -130,28 +115,6 @@ function buildRowTooltip(row: MergedSession): string {
   return parts.join(' · ');
 }
 
-function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: SessionSummary[] }> {
-  const today = new Date();
-  const groups = new Map<string, SessionSummary[]>();
-  for (const session of sessions) {
-    const d = new Date(session.lastActivityAt);
-    d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
-    const arr = groups.get(key) ?? [];
-    arr.push(session);
-    groups.set(key, arr);
-  }
-  const sortedKeys = [...groups.keys()].sort().reverse();
-  return sortedKeys.map((key) => {
-    const firstRow = groups.get(key)?.[0];
-    const iso = firstRow?.lastActivityAt ?? `${key}T00:00:00Z`;
-    return {
-      label: dayHeaderLabel(iso, today),
-      rows: groups.get(key) ?? [],
-    };
-  });
-}
-
 function formatNumber(n: number): string {
   return n.toLocaleString();
 }
@@ -201,6 +164,53 @@ export const UI = () => {
 
   const now = new Date();
 
+  const renderRow = (row: MergedSession, nowDate: Date) => {
+    const rowClassNames = [
+      s.row,
+      row.isLive ? s.rowLive : s.rowClickable,
+      flashingId === row.sessionId ? s.rowFlash : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const onClick = row.isLive
+      ? undefined
+      : () => open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+    return (
+      <div key={row.sessionId}>
+        <div
+          className={rowClassNames}
+          onClick={onClick}
+          onKeyDown={(e) => {
+            if (!row.isLive && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
+            }
+          }}
+          // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
+          role="button"
+          tabIndex={row.isLive ? -1 : 0}
+          aria-disabled={row.isLive}
+          title={
+            row.isLive
+              ? `Session open — switch manually (cmd-\`) · ${buildRowTooltip(row)}`
+              : buildRowTooltip(row)
+          }
+        >
+          {row.isLive && <span className={s.liveDot} aria-hidden="true" />}
+          {row.isLive && <span className={s.liveBadge}>LIVE</span>}
+          <span className={s.project}>{row.project}</span>
+          <span className={s.meta}>
+            {row.gitBranch ?? '—'} · {humanizeRelative(row.lastActivityAt, nowDate)}
+          </span>
+          <span className={s.tokens}>{formatTokens(row.tokens)}</span>
+        </div>
+        {rowError[row.sessionId] && (
+          <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="panel">
       <div className="panel-header">
@@ -217,72 +227,39 @@ export const UI = () => {
             No sessions in the last {data.window.officeDays} office days.
           </p>
         )}
-        {data && data.sessions.length > 0 && (
-          <>
-            <div className={s.statsStrip}>
-              <span>
-                Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
-                sessions · {formatNumber(data.stats.messageCount)} msgs
-              </span>
-              <span>
-                {formatNumber(data.stats.tokens.input)} in /{' '}
-                {formatNumber(data.stats.tokens.output)} out /{' '}
-                {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
-              </span>
-            </div>
-            {groupByDay(mergeByProject(data.sessions)).map((group) => (
-              <div key={group.label}>
-                <div className={s.dayHeader}>{group.label}</div>
-                {(group.rows as MergedSession[]).map((row) => {
-                  const rowClassNames = [
-                    s.row,
-                    row.isLive ? s.rowLive : s.rowClickable,
-                    flashingId === row.sessionId ? s.rowFlash : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ');
-                  const onClick = row.isLive
-                    ? undefined
-                    : () => open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
-                  return (
-                    <div key={row.sessionId}>
-                      <div
-                        className={rowClassNames}
-                        onClick={onClick}
-                        onKeyDown={(e) => {
-                          if (!row.isLive && (e.key === 'Enter' || e.key === ' ')) {
-                            e.preventDefault();
-                            open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
-                          }
-                        }}
-                        // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
-                        role="button"
-                        tabIndex={row.isLive ? -1 : 0}
-                        aria-disabled={row.isLive}
-                        title={
-                          row.isLive
-                            ? `Session open — switch manually (cmd-\`) · ${buildRowTooltip(row)}`
-                            : buildRowTooltip(row)
-                        }
-                      >
-                        {row.isLive && <span className={s.liveDot} aria-hidden="true" />}
-                        {row.isLive && <span className={s.liveBadge}>LIVE</span>}
-                        <span className={s.project}>{row.project}</span>
-                        <span className={s.meta}>
-                          {row.gitBranch ?? '—'} · {humanizeRelative(row.lastActivityAt, now)}
-                        </span>
-                        <span className={s.tokens}>{formatTokens(row.tokens)}</span>
-                      </div>
-                      {rowError[row.sessionId] && (
-                        <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
-                      )}
-                    </div>
-                  );
-                })}
+        {data && data.sessions.length > 0 && (() => {
+          const mergedRows = mergeByProject(data.sessions);
+          const liveRows = mergedRows.filter((r) => r.isLive);
+          const otherRows = mergedRows.filter((r) => !r.isLive);
+          const showHeaders = liveRows.length > 0 && otherRows.length > 0;
+          return (
+            <>
+              <div className={s.statsStrip}>
+                <span>
+                  Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
+                  sessions · {formatNumber(data.stats.messageCount)} msgs
+                </span>
+                <span>
+                  {formatNumber(data.stats.tokens.input)} in /{' '}
+                  {formatNumber(data.stats.tokens.output)} out /{' '}
+                  {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
+                </span>
               </div>
-            ))}
-          </>
-        )}
+              {liveRows.length > 0 && (
+                <>
+                  {showHeaders && <div className={s.sectionHeader}>Live</div>}
+                  {liveRows.map((row) => renderRow(row, now))}
+                </>
+              )}
+              {otherRows.length > 0 && (
+                <>
+                  {showHeaders && <div className={s.sectionHeader}>Recent</div>}
+                  {otherRows.map((row) => renderRow(row, now))}
+                </>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );

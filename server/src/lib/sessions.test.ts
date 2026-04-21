@@ -474,6 +474,26 @@ describe('listRecentSessions', () => {
     expect(result[0]?.durationMs).toBe(0);
   });
 
+  test('skips sessions whose parser returned zero messages', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj/empty.jsonl'],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async () => ({
+        sessionId: 'empty',
+        cwd: '',
+        gitBranch: null,
+        startedAt: '2026-04-22T10:00:00Z',
+        lastActivityAt: '2026-04-22T10:00:00Z',
+        messageCount: 0,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(result).toEqual([]);
+  });
+
   test('skips files whose stat call rejects', async () => {
     const { listRecentSessions } = await import('./sessions');
     const deps = makeDeps({

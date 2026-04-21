@@ -235,7 +235,7 @@ export async function listRecentSessions(
     }
 
     const { parsed } = entry;
-    if (!parsed.startedAt) continue; // no parseable lines → skip entirely
+    if (!parsed.startedAt || parsed.messageCount === 0) continue; // no parseable lines, or degenerate session → skip
     const tokens = sumTokens(parsed.tokensByModel);
 
     rows.push({

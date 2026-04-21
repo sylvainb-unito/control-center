@@ -12,12 +12,13 @@
   color: var(--pink);
   font-weight: bold;
 }
-.dayHeader {
-  font-family: "Orbitron", sans-serif;
-  color: var(--cyan);
+.sectionHeader {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--pink);
   letter-spacing: 1.5px;
   font-size: 12px;
-  padding: 8px 0 4px;
+  padding: 12px 0 4px;
+  text-transform: uppercase;
 }
 .row {
   display: flex;
