@@ -230,7 +230,6 @@ describe('parseSessionFile', () => {
   });
 });
 
-
 describe('listRecentSessions', () => {
   // Deps-only type for the test helper. `clearCache` is on ListOptions, not ListDeps.
   type Deps = NonNullable<Parameters<typeof import('./sessions').listRecentSessions>[1]>;

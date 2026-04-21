@@ -122,7 +122,6 @@ export async function parseSessionFile(
   return result;
 }
 
-
 export function officeDayCutoff(now: Date, officeDays: number): Date {
   // Cutoff = start-of-day of the weekday exactly `officeDays` weekdays before `now`.
   // The window is [cutoff, now], which includes `now`'s own date.
