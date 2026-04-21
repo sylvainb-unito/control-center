@@ -557,6 +557,54 @@ describe('listRecentSessions', () => {
     expect(r3).toHaveLength(1);
     expect(parseCalls).toBe(2);
   });
+
+  test('durationMs returns 0 when timestamps are unparseable', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj-1/x.jsonl'],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async () => ({
+        sessionId: 'x',
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        startedAt: 'not-a-date',
+        lastActivityAt: 'also-not-a-date',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    // The row is included because startedAt is non-empty (truthy), but durationMs
+    // must not propagate NaN — it falls back to 0 when timestamps don't parse.
+    expect(result[0]?.durationMs).toBe(0);
+  });
+
+  test('skips files whose stat call rejects', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const deps = makeDeps({
+      globber: async () => [
+        '/home/u/.claude/projects/proj-1/ok.jsonl',
+        '/home/u/.claude/projects/proj-1/nope.jsonl',
+      ],
+      stat: async (p: string) => {
+        if (p.endsWith('nope.jsonl')) throw new Error('EACCES: permission denied');
+        return { mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 };
+      },
+      parser: async (_stream, id) => ({
+        sessionId: id,
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        startedAt: '2026-04-22T10:00:00Z',
+        lastActivityAt: '2026-04-22T10:00:00Z',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+    });
+    const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(result.map((s) => s.sessionId)).toEqual(['ok']);
+  });
 });
 
 describe('openSessionInGhostty', () => {

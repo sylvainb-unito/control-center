@@ -260,6 +260,29 @@ body
     });
     expect(readCalls).toBe(2);
   });
+
+  test('skips files whose stat call rejects', async () => {
+    const { listJournals } = await import('./journals');
+    const deps = makeDeps({
+      clearCache: true,
+      globber: async (pattern: string) =>
+        pattern.includes('/daily/')
+          ? ['/home/u/.claude/journals/daily/ok.md', '/home/u/.claude/journals/daily/nope.md']
+          : [],
+      stat: async (p: string) => {
+        if (p.endsWith('nope.md')) throw new Error('EACCES: permission denied');
+        return { mtimeMs: 100, size: 200 };
+      },
+      readFile: async () => `---
+session: 1
+repos: [r]
+---
+body
+`,
+    });
+    const result = await listJournals(deps);
+    expect(result.daily.map((j) => j.id)).toEqual(['ok']);
+  });
 });
 
 describe('readJournalBody', () => {

@@ -137,7 +137,7 @@ export function loadPricing(path: string): Pricing {
     const parsed = JSON.parse(raw) as Pricing;
     for (const [model, rates] of Object.entries(parsed)) {
       const values = Object.values(rates);
-      if (values.length !== 4 || values.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
+      if (values.length < 4 || values.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
         logger.warn({ path, model }, 'malformed rate in model pricing; skipping model');
         delete parsed[model];
       }
@@ -226,6 +226,13 @@ const defaultOpenStream = async (p: string): Promise<Readable> => {
   return fs.createReadStream(p);
 };
 
+function computeDurationMs(startedAt: string, lastActivityAt: string): number {
+  const start = Date.parse(startedAt);
+  const last = Date.parse(lastActivityAt);
+  if (!Number.isFinite(start) || !Number.isFinite(last)) return 0;
+  return Math.max(0, last - start);
+}
+
 function sumTokens(tokensByModel: Record<string, TokenBucket>): TokenBucket {
   const total = emptyBucket();
   for (const b of Object.values(tokensByModel)) {
@@ -293,7 +300,7 @@ export async function listRecentSessions(
       gitBranch: parsed.gitBranch,
       startedAt: parsed.startedAt,
       lastActivityAt: parsed.lastActivityAt,
-      durationMs: Math.max(0, Date.parse(parsed.lastActivityAt) - Date.parse(parsed.startedAt)),
+      durationMs: computeDurationMs(parsed.startedAt, parsed.lastActivityAt),
       messageCount: parsed.messageCount,
       primaryModel: parsed.primaryModel,
       tokens,
