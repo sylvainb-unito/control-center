@@ -167,7 +167,7 @@ export type ListDeps = {
 type CacheEntry = { mtime: number; size: number; parsed: ParsedSession };
 const cache = new Map<string, CacheEntry>();
 
-const LIVE_THRESHOLD_MS = 120_000;
+const LIVE_THRESHOLD_MS = 5 * 60_000;
 
 const defaultOpenStream = async (p: string): Promise<Readable> => {
   return fs.createReadStream(p);

@@ -6,6 +6,7 @@ import s from './ui.module.css';
 
 const QK = ['claude-sessions'] as const;
 const LIVE_POLL_MS = 30_000;
+const IDLE_POLL_MS = 60_000;
 
 function humanizeRelative(fromIso: string, now: Date): string {
   const from = new Date(fromIso);
@@ -129,7 +130,7 @@ export const UI = () => {
     staleTime: 30_000,
     refetchInterval: (q) => {
       const latest = q.state.data as ListResponse | undefined;
-      return latest?.sessions.some((row) => row.isLive) ? LIVE_POLL_MS : false;
+      return latest?.sessions.some((row) => row.isLive) ? LIVE_POLL_MS : IDLE_POLL_MS;
     },
   });
 
