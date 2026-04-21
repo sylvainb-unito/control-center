@@ -55,6 +55,8 @@ describe('braindump api', () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe('BAD_REQUEST');
   });
 
   test('GET / returns { inbox, processed } envelope', async () => {
@@ -91,10 +93,36 @@ describe('braindump api', () => {
     expect(res.status).toBe(404);
   });
 
+  test('GET /:id returns 500 READ_FAILED on filesystem error', async () => {
+    const svc = await import('@cc/server/lib/braindump');
+    const ReadErr = svc.EntryReadError as new (m: string) => Error;
+    (svc.readEntryBody as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new ReadErr('EACCES'),
+    );
+    const { api } = await import('./api');
+    const res = await api.request(`/${VALID_ID}`);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error.code).toBe('READ_FAILED');
+  });
+
   test('DELETE /:id unlinks and returns ok', async () => {
     const { api } = await import('./api');
     const res = await api.request(`/${VALID_ID}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
+  });
+
+  test('DELETE /:id returns 404 when entry is missing', async () => {
+    const svc = await import('@cc/server/lib/braindump');
+    const NotFound = svc.EntryNotFoundError as new (m: string) => Error;
+    (svc.deleteEntry as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new NotFound('missing'),
+    );
+    const { api } = await import('./api');
+    const res = await api.request(`/${VALID_ID}`, { method: 'DELETE' });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe('ENTRY_NOT_FOUND');
   });
 
   test('DELETE /:id rejects invalid id format', async () => {
@@ -107,6 +135,19 @@ describe('braindump api', () => {
     const { api } = await import('./api');
     const res = await api.request(`/${VALID_ID}/reprocess`, { method: 'POST' });
     expect(res.status).toBe(200);
+  });
+
+  test('POST /:id/reprocess returns 404 when entry is missing', async () => {
+    const svc = await import('@cc/server/lib/braindump');
+    const NotFound = svc.EntryNotFoundError as new (m: string) => Error;
+    (svc.reprocessEntry as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new NotFound('missing'),
+    );
+    const { api } = await import('./api');
+    const res = await api.request(`/${VALID_ID}/reprocess`, { method: 'POST' });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe('ENTRY_NOT_FOUND');
   });
 
   test('POST /:id/reprocess rejects invalid id', async () => {
