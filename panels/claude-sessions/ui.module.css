@@ -1,0 +1,46 @@
+.statsStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--fg-dim);
+  font-size: 12px;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--fg-dim);
+  margin-bottom: 10px;
+}
+.statsStrip strong {
+  color: var(--pink);
+  font-weight: bold;
+}
+.dayHeader {
+  font-family: 'Orbitron', sans-serif;
+  color: var(--cyan);
+  letter-spacing: 1.5px;
+  font-size: 12px;
+  padding: 8px 0 4px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+.project {
+  color: var(--fg);
+  font-weight: bold;
+  min-width: 120px;
+}
+.meta {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+.msgs {
+  color: var(--fg-dim);
+  font-size: 11px;
+  margin-left: auto;
+}
+.pricingMissing {
+  color: var(--yellow);
+  font-size: 11px;
+}
