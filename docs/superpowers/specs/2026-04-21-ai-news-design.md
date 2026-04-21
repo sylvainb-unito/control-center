@@ -73,7 +73,7 @@ server/src/lib/
 ```
 
 - `web/src/panels.ts` and `server/src/routes.ts` get one import + one registry row each.
-- `meta.order` is `60` (after Journals at `50`, before any future panel).
+- `meta.order` is `70` (after Braindump at `60`).
 
 ## 5. Data model
 
