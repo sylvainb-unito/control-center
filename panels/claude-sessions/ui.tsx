@@ -7,13 +7,38 @@ import s from './ui.module.css';
 const QK = ['claude-sessions'] as const;
 const LIVE_POLL_MS = 30_000;
 
-function humanizeDuration(ms: number): string {
-  const mins = Math.round(ms / 60_000);
-  if (mins < 1) return '<1m';
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+function humanizeRelative(fromIso: string, now: Date): string {
+  const from = new Date(fromIso);
+  const diffMs = now.getTime() - from.getTime();
+  if (Number.isNaN(diffMs)) return '—';
+  const diffMins = Math.round(diffMs / 60_000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  // Compare calendar days
+  const fromStart = new Date(from);
+  fromStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((todayStart.getTime() - fromStart.getTime()) / 86_400_000);
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays > 1 && diffDays < 7) return `${diffDays}d ago`;
+  return fromStart.toISOString().slice(0, 10);
+}
+
+function formatTokens(tokens: {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+}): string {
+  const total = tokens.input + tokens.output + tokens.cacheRead + tokens.cacheCreation;
+  if (total === 0) return '0 tok';
+  if (total < 1_000) return `${total} tok`;
+  if (total < 1_000_000) return `${(total / 1_000).toFixed(1)}K tok`;
+  if (total < 1_000_000_000) return `${(total / 1_000_000).toFixed(1)}M tok`;
+  return `${(total / 1_000_000_000).toFixed(1)}G tok`;
 }
 
 function dayHeaderLabel(iso: string, today: Date): string {
@@ -35,7 +60,7 @@ function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: Se
   const today = new Date();
   const groups = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
-    const d = new Date(session.startedAt);
+    const d = new Date(session.lastActivityAt);
     d.setHours(0, 0, 0, 0);
     const key = d.toISOString().slice(0, 10);
     const arr = groups.get(key) ?? [];
@@ -45,7 +70,7 @@ function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: Se
   const sortedKeys = [...groups.keys()].sort().reverse();
   return sortedKeys.map((key) => {
     const firstRow = groups.get(key)?.[0];
-    const iso = firstRow?.startedAt ?? `${key}T00:00:00Z`;
+    const iso = firstRow?.lastActivityAt ?? `${key}T00:00:00Z`;
     return {
       label: dayHeaderLabel(iso, today),
       rows: groups.get(key) ?? [],
@@ -55,10 +80,6 @@ function groupByDay(sessions: SessionSummary[]): Array<{ label: string; rows: Se
 
 function formatNumber(n: number): string {
   return n.toLocaleString();
-}
-
-function formatUsd(n: number): string {
-  return `~$${n.toFixed(2)}`;
 }
 
 type OpenArgs = { sessionId: string; cwd: string };
@@ -104,6 +125,8 @@ export const UI = () => {
     },
   });
 
+  const now = new Date();
+
   return (
     <div className="panel">
       <div className="panel-header">
@@ -125,17 +148,12 @@ export const UI = () => {
             <div className={s.statsStrip}>
               <span>
                 Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
-                sessions · {humanizeDuration(data.stats.durationMs)} ·{' '}
-                {formatNumber(data.stats.messageCount)} msgs
+                sessions · {formatNumber(data.stats.messageCount)} msgs
               </span>
               <span>
                 {formatNumber(data.stats.tokens.input)} in /{' '}
                 {formatNumber(data.stats.tokens.output)} out /{' '}
                 {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
-                · <strong>{formatUsd(data.stats.estCostUsd)} est</strong>
-                {data.stats.pricingMissing && (
-                  <span className={s.pricingMissing}> (some rates missing)</span>
-                )}
               </span>
             </div>
             {groupByDay(data.sessions).map((group) => (
@@ -177,17 +195,10 @@ export const UI = () => {
                         <span className={s.project}>{row.project}</span>
                         <span className={s.meta}>
                           {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} ·{' '}
-                          {humanizeDuration(row.durationMs)}
+                          {humanizeRelative(row.lastActivityAt, now)}
                         </span>
+                        <span className={s.tokens}>{formatTokens(row.tokens)}</span>
                         <span className={s.msgs}>{row.messageCount} msgs</span>
-                        {row.pricingMissing && (
-                          <span
-                            className={s.pricingMissing}
-                            title="This session used a model with no pricing rate configured — cost isn't reflected in the total."
-                          >
-                            —$
-                          </span>
-                        )}
                       </div>
                       {rowError[row.sessionId] && (
                         <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>

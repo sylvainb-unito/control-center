@@ -35,14 +35,14 @@
   color: var(--fg-dim);
   font-size: 11px;
 }
+.tokens {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
 .msgs {
   color: var(--fg-dim);
   font-size: 11px;
   margin-left: auto;
-}
-.pricingMissing {
-  color: var(--yellow);
-  font-size: 11px;
 }
 .rowClickable {
   cursor: pointer;
