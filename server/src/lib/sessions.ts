@@ -272,9 +272,7 @@ export async function listRecentSessions(
     const sessionId = path.basename(filePath, '.jsonl');
     let entry = cache.get(filePath);
     if (!entry || entry.mtime !== st.mtimeMs || entry.size !== st.size) {
-      // Only open a real stream when using the default parser; injected parsers
-      // receive a stub (they're responsible for obtaining data themselves).
-      const stream = deps.parser ? (null as unknown as Readable) : await openStream(filePath);
+      const stream = await openStream(filePath);
       try {
         const parsed = await parser(stream, sessionId);
         entry = { mtime: st.mtimeMs, size: st.size, parsed };

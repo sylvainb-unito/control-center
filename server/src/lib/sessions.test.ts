@@ -263,9 +263,7 @@ describe('listRecentSessions', () => {
         primaryModel: null,
         tokensByModel: {},
       }),
-      openStream: async () => {
-        throw new Error('unused in this test');
-      },
+      openStream: async () => Readable.from([]),
     };
     return { ...base, ...overrides };
   }
@@ -416,5 +414,59 @@ describe('listRecentSessions', () => {
     expect(row?.estCostUsd).toBeCloseTo(30, 3); // 2M × $15
     expect(row?.pricingMissing).toBe(false);
     expect(row?.gitBranch).toBe('feat/x');
+  });
+
+  test('evicts cache entries for files that fall out of the window', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    // now1: 2026-04-22T12:00:00Z, officeDays=10 → cutoff 2026-04-08 local 00:00
+    const now1 = new Date('2026-04-22T12:00:00Z').getTime();
+    // File mtime just after cutoff for now1, but will be well before cutoff for now2.
+    const fileMtime = new Date('2026-04-09T10:00:00Z').getTime();
+    // now2: 2026-05-10 → cutoff advances well past fileMtime.
+    const now2 = new Date('2026-05-10T12:00:00Z').getTime();
+
+    let parseCalls = 0;
+    const baseDeps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj-1/evict.jsonl'],
+      stat: async () => ({ mtimeMs: fileMtime, size: 1000 }),
+      parser: async () => {
+        parseCalls++;
+        return {
+          sessionId: 'evict',
+          cwd: '/Users/u/Workspace/proj',
+          gitBranch: null,
+          startedAt: '2026-04-09T10:00:00Z',
+          lastActivityAt: '2026-04-09T10:00:00Z',
+          messageCount: 1,
+          primaryModel: null,
+          tokensByModel: {},
+        };
+      },
+    });
+
+    // Call 1 — now1, file is in window, should parse and cache.
+    const r1 = await listRecentSessions(
+      { officeDays: 10, clearCache: true },
+      { ...baseDeps, now: () => now1 },
+    );
+    expect(r1).toHaveLength(1);
+    expect(parseCalls).toBe(1);
+
+    // Call 2 — now2, file falls out of window, entry should be evicted.
+    const r2 = await listRecentSessions(
+      { officeDays: 10 },
+      { ...baseDeps, now: () => now2 },
+    );
+    expect(r2).toHaveLength(0);
+    expect(parseCalls).toBe(1); // no re-parse: file was filtered out before cache lookup
+
+    // Call 3 — back to now1; if eviction worked, this parses fresh. If the stale
+    // entry survived call 2, parseCalls would stay at 1 (cache hit) instead of bumping to 2.
+    const r3 = await listRecentSessions(
+      { officeDays: 10 },
+      { ...baseDeps, now: () => now1 },
+    );
+    expect(r3).toHaveLength(1);
+    expect(parseCalls).toBe(2);
   });
 });
