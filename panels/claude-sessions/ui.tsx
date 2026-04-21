@@ -197,7 +197,9 @@ export const UI = () => {
           }
         >
           <span className={s.project}>{row.project}</span>
-          <span className={s.branch} title={row.gitBranch ?? undefined}>{row.gitBranch ?? '—'}</span>
+          <span className={s.branch} title={row.gitBranch ?? undefined}>
+            {row.gitBranch ?? '—'}
+          </span>
           <span className={s.lastActive}>{humanizeRelative(row.lastActivityAt, nowDate)}</span>
           <span className={s.tokens}>{formatTokens(row.tokens)}</span>
         </div>
