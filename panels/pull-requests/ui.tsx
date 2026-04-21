@@ -19,7 +19,7 @@ function reviewBadge(d: PR['reviewDecision']) {
 }
 
 function displayRepo(repo: string): string {
-  return repo.startsWith('unito/') ? repo.slice('unito/'.length) : repo;
+  return repo.startsWith('unitoio/') ? repo.slice('unitoio/'.length) : repo;
 }
 
 function Row({ pr }: { pr: PR }) {
