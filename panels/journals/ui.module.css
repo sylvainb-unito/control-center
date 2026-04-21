@@ -112,3 +112,34 @@
   font-size: 12px;
   font-style: italic;
 }
+.rowClickable[aria-expanded="true"] .chevron {
+  color: var(--cyan);
+}
+.body pre {
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.body p {
+  margin: 6px 0;
+}
+.body blockquote {
+  border-left: 2px solid var(--fg-dim);
+  margin: 6px 0;
+  padding-left: 10px;
+  color: var(--fg-dim);
+  font-style: italic;
+}
+.body table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.body th, .body td {
+  border: 1px solid var(--fg-dim);
+  padding: 4px 8px;
+}
+.body th {
+  background: var(--bg-mid);
+  color: var(--fg);
+}
