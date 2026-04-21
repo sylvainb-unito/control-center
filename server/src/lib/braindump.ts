@@ -121,7 +121,7 @@ export async function createEntry(rawText: string, deps: CreateDeps = {}): Promi
 // ---- listEntries ------------------------------------------------------
 
 const STATUS_VALUES: EntryStatus[] = ['new', 'processing', 'processed', 'failed'];
-const CATEGORY_VALUES: Category[] = ['todo', 'thought', 'read-later'];
+export const CATEGORY_VALUES: readonly Category[] = ['todo', 'thought', 'read-later'];
 
 export type ListDeps = {
   home?: string;

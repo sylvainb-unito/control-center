@@ -1,4 +1,4 @@
-import type { Category } from './braindump';
+import { CATEGORY_VALUES, type Category } from './braindump';
 
 export type LlmOutput = {
   category: Category;
@@ -7,12 +7,13 @@ export type LlmOutput = {
   tags: string[];
 };
 
-const CATEGORIES: readonly Category[] = ['todo', 'thought', 'read-later'];
-
 export function isValidLlmOutput(x: unknown): x is LlmOutput {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  if (typeof o.category !== 'string' || !(CATEGORIES as readonly string[]).includes(o.category))
+  if (
+    typeof o.category !== 'string' ||
+    !(CATEGORY_VALUES as readonly string[]).includes(o.category)
+  )
     return false;
   if (typeof o.title !== 'string') return false;
   if (typeof o.summary !== 'string') return false;
