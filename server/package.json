@@ -10,7 +10,9 @@
     "./lib/sessions": "./src/lib/sessions.ts",
     "./lib/journals": "./src/lib/journals.ts",
     "./lib/braindump": "./src/lib/braindump.ts",
-    "./lib/braindump-processor": "./src/lib/braindump-processor.ts"
+    "./lib/braindump-processor": "./src/lib/braindump-processor.ts",
+    "./lib/ai-news": "./src/lib/ai-news.ts",
+    "./lib/ai-news-processor": "./src/lib/ai-news-processor.ts"
   },
   "scripts": {
     "dev": "SERVE_STATIC=false PORT=7778 tsx watch src/main.ts",
