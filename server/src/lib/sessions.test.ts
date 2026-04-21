@@ -1,8 +1,8 @@
-import { describe, expect, test } from 'vitest';
-import { Readable } from 'node:stream';
 import fs from 'node:fs';
 import os from 'node:os';
 import nodePath from 'node:path';
+import { Readable } from 'node:stream';
+import { describe, expect, test } from 'vitest';
 
 describe('officeDayCutoff', () => {
   test('returns start-of-day of the weekday exactly N weekdays before now (weekday now)', async () => {
@@ -73,7 +73,15 @@ describe('parseSessionFile', () => {
         type: 'assistant',
         timestamp: '2026-04-22T10:00:30Z',
         sessionId: 'S1',
-        message: { model: 'claude-opus-4-7', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 20, cache_creation_input_tokens: 10 } },
+        message: {
+          model: 'claude-opus-4-7',
+          usage: {
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_read_input_tokens: 20,
+            cache_creation_input_tokens: 10,
+          },
+        },
       }),
       JSON.stringify({
         type: 'user',
@@ -84,7 +92,15 @@ describe('parseSessionFile', () => {
         type: 'assistant',
         timestamp: '2026-04-22T10:05:45Z',
         sessionId: 'S1',
-        message: { model: 'claude-opus-4-7', usage: { input_tokens: 200, output_tokens: 90, cache_read_input_tokens: 5, cache_creation_input_tokens: 0 } },
+        message: {
+          model: 'claude-opus-4-7',
+          usage: {
+            input_tokens: 200,
+            output_tokens: 90,
+            cache_read_input_tokens: 5,
+            cache_creation_input_tokens: 0,
+          },
+        },
       }),
     ];
     const result = await parseSessionFile(streamOf(...lines), 'S1');
@@ -104,7 +120,12 @@ describe('parseSessionFile', () => {
 
   test('tolerates trailing incomplete line (session still being written)', async () => {
     const { parseSessionFile } = await import('./sessions');
-    const full = JSON.stringify({ type: 'user', timestamp: '2026-04-22T10:00:00Z', sessionId: 'S2', cwd: '/p' });
+    const full = JSON.stringify({
+      type: 'user',
+      timestamp: '2026-04-22T10:00:00Z',
+      sessionId: 'S2',
+      cwd: '/p',
+    });
     const partial = '{"type":"assist'; // truncated mid-write
     const result = await parseSessionFile(streamOf(full, partial), 'S2');
     expect(result.messageCount).toBe(1);
@@ -115,11 +136,40 @@ describe('parseSessionFile', () => {
   test('primary-model tie-break picks most-recent when output tokens equal', async () => {
     const { parseSessionFile } = await import('./sessions');
     const lines = [
-      JSON.stringify({ type: 'user', timestamp: '2026-04-22T10:00:00Z', sessionId: 'S3', cwd: '/p' }),
-      JSON.stringify({ type: 'assistant', timestamp: '2026-04-22T10:00:10Z', sessionId: 'S3',
-        message: { model: 'claude-opus-4-7', usage: { input_tokens: 0, output_tokens: 50, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }),
-      JSON.stringify({ type: 'assistant', timestamp: '2026-04-22T10:01:00Z', sessionId: 'S3',
-        message: { model: 'claude-sonnet-4-6', usage: { input_tokens: 0, output_tokens: 50, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-04-22T10:00:00Z',
+        sessionId: 'S3',
+        cwd: '/p',
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-04-22T10:00:10Z',
+        sessionId: 'S3',
+        message: {
+          model: 'claude-opus-4-7',
+          usage: {
+            input_tokens: 0,
+            output_tokens: 50,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 0,
+          },
+        },
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-04-22T10:01:00Z',
+        sessionId: 'S3',
+        message: {
+          model: 'claude-sonnet-4-6',
+          usage: {
+            input_tokens: 0,
+            output_tokens: 50,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 0,
+          },
+        },
+      }),
     ];
     const result = await parseSessionFile(streamOf(...lines), 'S3');
     expect(result.primaryModel).toBe('claude-sonnet-4-6');
@@ -128,7 +178,12 @@ describe('parseSessionFile', () => {
   test('session with no assistant lines has null primaryModel and empty tokensByModel', async () => {
     const { parseSessionFile } = await import('./sessions');
     const lines = [
-      JSON.stringify({ type: 'user', timestamp: '2026-04-22T10:00:00Z', sessionId: 'S4', cwd: '/p' }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-04-22T10:00:00Z',
+        sessionId: 'S4',
+        cwd: '/p',
+      }),
       JSON.stringify({ type: 'user', timestamp: '2026-04-22T10:00:30Z', sessionId: 'S4' }),
     ];
     const result = await parseSessionFile(streamOf(...lines), 'S4');
@@ -141,10 +196,27 @@ describe('parseSessionFile', () => {
     const { parseSessionFile } = await import('./sessions');
     const lines = [
       JSON.stringify({ type: 'permission-mode', permissionMode: 'default', sessionId: 'S5' }),
-      JSON.stringify({ type: 'user', timestamp: '2026-04-22T10:00:00Z', sessionId: 'S5', cwd: '/p' }),
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-04-22T10:00:00Z',
+        sessionId: 'S5',
+        cwd: '/p',
+      }),
       JSON.stringify({ type: 'attachment', timestamp: '2026-04-22T10:00:01Z', sessionId: 'S5' }),
-      JSON.stringify({ type: 'assistant', timestamp: '2026-04-22T10:00:10Z', sessionId: 'S5',
-        message: { model: 'claude-opus-4-7', usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }),
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: '2026-04-22T10:00:10Z',
+        sessionId: 'S5',
+        message: {
+          model: 'claude-opus-4-7',
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 0,
+          },
+        },
+      }),
     ];
     const result = await parseSessionFile(streamOf(...lines), 'S5');
     expect(result.messageCount).toBe(2); // user + assistant only
@@ -180,7 +252,12 @@ describe('applyPricing', () => {
   test('computes cost from tokensByModel using rates', async () => {
     const { applyPricing } = await import('./sessions');
     const tokensByModel = {
-      'claude-opus-4-7': { input: 1_000_000, output: 500_000, cacheRead: 2_000_000, cacheCreation: 100_000 },
+      'claude-opus-4-7': {
+        input: 1_000_000,
+        output: 500_000,
+        cacheRead: 2_000_000,
+        cacheCreation: 100_000,
+      },
     };
     const { estCostUsd, pricingMissing } = applyPricing(tokensByModel, pricing);
     // input: 1M × $15 = $15; output: 0.5M × $75 = $37.5;
@@ -212,18 +289,27 @@ describe('applyPricing', () => {
 describe('loadPricing', () => {
   test('drops a model whose rates are not all finite numbers', async () => {
     const { loadPricing } = await import('./sessions');
-    const tmp = nodePath.join(os.tmpdir(), `pricing-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
-    fs.writeFileSync(tmp, JSON.stringify({
-      'claude-opus-4-7': {
-        inputPerMtok: 15, outputPerMtok: 75, cacheReadPerMtok: 1.5, cacheCreationPerMtok: 18.75,
-      },
-      'broken-model': {
-        inputPerMtok: 'fifteen',
-        outputPerMtok: 75,
-        cacheReadPerMtok: 1.5,
-        cacheCreationPerMtok: 18.75,
-      },
-    }));
+    const tmp = nodePath.join(
+      os.tmpdir(),
+      `pricing-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+    );
+    fs.writeFileSync(
+      tmp,
+      JSON.stringify({
+        'claude-opus-4-7': {
+          inputPerMtok: 15,
+          outputPerMtok: 75,
+          cacheReadPerMtok: 1.5,
+          cacheCreationPerMtok: 18.75,
+        },
+        'broken-model': {
+          inputPerMtok: 'fifteen',
+          outputPerMtok: 75,
+          cacheReadPerMtok: 1.5,
+          cacheCreationPerMtok: 18.75,
+        },
+      }),
+    );
     try {
       const result = loadPricing(tmp);
       expect(result['claude-opus-4-7']).toBeDefined();
@@ -249,7 +335,12 @@ describe('listRecentSessions', () => {
       now: () => new Date('2026-04-22T12:00:00Z').getTime(),
       home: '/home/u',
       pricing: {
-        'claude-opus-4-7': { inputPerMtok: 15, outputPerMtok: 75, cacheReadPerMtok: 1.5, cacheCreationPerMtok: 18.75 },
+        'claude-opus-4-7': {
+          inputPerMtok: 15,
+          outputPerMtok: 75,
+          cacheReadPerMtok: 1.5,
+          cacheCreationPerMtok: 18.75,
+        },
       },
       globber: async () => [],
       stat: async () => ({ mtimeMs: 0, size: 0 }),
@@ -280,7 +371,10 @@ describe('listRecentSessions', () => {
     const recent = new Date('2026-04-21T10:00:00Z').getTime();
     const old = new Date('2026-04-01T10:00:00Z').getTime();
     const deps = makeDeps({
-      globber: async () => ['/home/u/.claude/projects/proj-1/aaa.jsonl', '/home/u/.claude/projects/proj-1/bbb.jsonl'],
+      globber: async () => [
+        '/home/u/.claude/projects/proj-1/aaa.jsonl',
+        '/home/u/.claude/projects/proj-1/bbb.jsonl',
+      ],
       stat: async (p: string) => ({
         mtimeMs: p.endsWith('aaa.jsonl') ? recent : old,
         size: 1000,
@@ -453,19 +547,13 @@ describe('listRecentSessions', () => {
     expect(parseCalls).toBe(1);
 
     // Call 2 — now2, file falls out of window, entry should be evicted.
-    const r2 = await listRecentSessions(
-      { officeDays: 10 },
-      { ...baseDeps, now: () => now2 },
-    );
+    const r2 = await listRecentSessions({ officeDays: 10 }, { ...baseDeps, now: () => now2 });
     expect(r2).toHaveLength(0);
     expect(parseCalls).toBe(1); // no re-parse: file was filtered out before cache lookup
 
     // Call 3 — back to now1; if eviction worked, this parses fresh. If the stale
     // entry survived call 2, parseCalls would stay at 1 (cache hit) instead of bumping to 2.
-    const r3 = await listRecentSessions(
-      { officeDays: 10 },
-      { ...baseDeps, now: () => now1 },
-    );
+    const r3 = await listRecentSessions({ officeDays: 10 }, { ...baseDeps, now: () => now1 });
     expect(r3).toHaveLength(1);
     expect(parseCalls).toBe(2);
   });
@@ -499,9 +587,7 @@ describe('openSessionInGhostty', () => {
     const runner = async () => {
       throw new Error('Ghostty not found');
     };
-    await expect(
-      openSessionInGhostty('abc', '/p', { runner }),
-    ).rejects.toBeInstanceOf(SpawnError);
+    await expect(openSessionInGhostty('abc', '/p', { runner })).rejects.toBeInstanceOf(SpawnError);
   });
 
   test('truncates long error messages to 200 chars', async () => {

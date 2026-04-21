@@ -110,20 +110,26 @@ export const UI = () => {
         {isLoading && <p style={{ color: 'var(--fg-dim)' }}>loading…</p>}
         {error && <p style={{ color: 'var(--danger)' }}>{(error as Error).message}</p>}
         {data && data.sessions.length === 0 && (
-          <p style={{ color: 'var(--fg-dim)' }}>No sessions in the last {data.window.officeDays} office days.</p>
+          <p style={{ color: 'var(--fg-dim)' }}>
+            No sessions in the last {data.window.officeDays} office days.
+          </p>
         )}
         {data && data.sessions.length > 0 && (
           <>
             <div className={s.statsStrip}>
               <span>
-                Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong> sessions ·{' '}
-                {humanizeDuration(data.stats.durationMs)} · {formatNumber(data.stats.messageCount)} msgs
+                Last {data.window.officeDays} office days · <strong>{data.stats.count}</strong>{' '}
+                sessions · {humanizeDuration(data.stats.durationMs)} ·{' '}
+                {formatNumber(data.stats.messageCount)} msgs
               </span>
               <span>
-                {formatNumber(data.stats.tokens.input)} in / {formatNumber(data.stats.tokens.output)} out /{' '}
-                {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache ·{' '}
-                <strong>{formatUsd(data.stats.estCostUsd)} est</strong>
-                {data.stats.pricingMissing && <span className={s.pricingMissing}> (some rates missing)</span>}
+                {formatNumber(data.stats.tokens.input)} in /{' '}
+                {formatNumber(data.stats.tokens.output)} out /{' '}
+                {formatNumber(data.stats.tokens.cacheRead + data.stats.tokens.cacheCreation)} cache
+                · <strong>{formatUsd(data.stats.estCostUsd)} est</strong>
+                {data.stats.pricingMissing && (
+                  <span className={s.pricingMissing}> (some rates missing)</span>
+                )}
               </span>
             </div>
             {groupByDay(data.sessions).map((group) => (
@@ -154,6 +160,7 @@ export const UI = () => {
                             open.mutate({ sessionId: row.sessionId, cwd: row.cwd });
                           }
                         }}
+                        // biome-ignore lint/a11y/useSemanticElements: row is a flex layout; native <button> would break the visual row contract.
                         role="button"
                         tabIndex={row.isLive ? -1 : 0}
                         aria-disabled={row.isLive}
@@ -163,7 +170,8 @@ export const UI = () => {
                         {row.isLive && <span className={s.liveBadge}>LIVE</span>}
                         <span className={s.project}>{row.project}</span>
                         <span className={s.meta}>
-                          {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} · {humanizeDuration(row.durationMs)}
+                          {row.gitBranch ?? '—'} · {row.primaryModel ?? '—'} ·{' '}
+                          {humanizeDuration(row.durationMs)}
                         </span>
                         <span className={s.msgs}>{row.messageCount} msgs</span>
                       </div>

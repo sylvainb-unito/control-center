@@ -11,9 +11,6 @@ vi.mock('@cc/server/lib/sessions', () => ({
   },
   SpawnError: class SpawnError extends Error {
     code = 'SPAWN_FAILED';
-    constructor(m: string) {
-      super(m);
-    }
   },
 }));
 
@@ -38,7 +35,13 @@ describe('claude-sessions api', () => {
     const svc = await import('@cc/server/lib/sessions');
     (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
       sampleSession,
-      { ...sampleSession, sessionId: 'def', estCostUsd: 1.25, durationMs: 30 * 60_000, messageCount: 4 },
+      {
+        ...sampleSession,
+        sessionId: 'def',
+        estCostUsd: 1.25,
+        durationMs: 30 * 60_000,
+        messageCount: 4,
+      },
     ]);
     const { api } = await import('./api');
     const res = await api.request('/');
@@ -81,7 +84,9 @@ describe('claude-sessions api', () => {
 
   test('POST /open with unknown session returns 404 SESSION_NOT_FOUND', async () => {
     const svc = await import('@cc/server/lib/sessions');
-    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([sampleSession]);
+    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      sampleSession,
+    ]);
     const { api } = await import('./api');
     const res = await api.request('/open', {
       method: 'POST',
@@ -113,8 +118,12 @@ describe('claude-sessions api', () => {
 
   test('POST /open with valid closed session spawns ghostty and returns 200', async () => {
     const svc = await import('@cc/server/lib/sessions');
-    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([sampleSession]);
-    (svc.openSessionInGhostty as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(undefined);
+    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      sampleSession,
+    ]);
+    (svc.openSessionInGhostty as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      undefined,
+    );
     const { api } = await import('./api');
     const res = await api.request('/open', {
       method: 'POST',
@@ -124,12 +133,17 @@ describe('claude-sessions api', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual({ opened: true });
-    expect(svc.openSessionInGhostty).toHaveBeenCalledWith(sampleSession.sessionId, sampleSession.cwd);
+    expect(svc.openSessionInGhostty).toHaveBeenCalledWith(
+      sampleSession.sessionId,
+      sampleSession.cwd,
+    );
   });
 
   test('POST /open surfaces SPAWN_FAILED when spawn helper throws', async () => {
     const svc = await import('@cc/server/lib/sessions');
-    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([sampleSession]);
+    (svc.listRecentSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      sampleSession,
+    ]);
     const SpawnError = svc.SpawnError as new (m: string) => Error;
     (svc.openSessionInGhostty as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new SpawnError('Ghostty not installed'),

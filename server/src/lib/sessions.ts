@@ -1,10 +1,10 @@
+import { execFile as execFileCb } from 'node:child_process';
 import fs from 'node:fs';
 import { glob as nativeGlob } from 'node:fs/promises';
-import { execFile as execFileCb } from 'node:child_process';
-import { createInterface } from 'node:readline';
-import type { Readable } from 'node:stream';
 import os from 'node:os';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
+import type { Readable } from 'node:stream';
 import { promisify } from 'node:util';
 
 import { logger } from '../logger';
@@ -66,7 +66,7 @@ export async function parseSessionFile(
   let lineIdx = 0;
   let loggedParseError = false;
 
-  const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  const rl = createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY });
   for await (const raw of rl) {
     lineIdx++;
     if (!raw) continue;
@@ -75,7 +75,10 @@ export async function parseSessionFile(
       obj = JSON.parse(raw) as MaybeLine;
     } catch {
       if (!loggedParseError) {
-        logger.warn({ sessionId, lineIdx }, 'unparseable line in session jsonl (further errors in this session suppressed)');
+        logger.warn(
+          { sessionId, lineIdx },
+          'unparseable line in session jsonl (further errors in this session suppressed)',
+        );
         loggedParseError = true;
       }
       continue;
@@ -140,7 +143,10 @@ export function loadPricing(path: string): Pricing {
     }
     return parsed;
   } catch (err) {
-    logger.warn({ path, err: (err as Error)?.message }, 'failed to load model pricing; using empty pricing');
+    logger.warn(
+      { path, err: (err as Error)?.message },
+      'failed to load model pricing; using empty pricing',
+    );
     return {};
   }
 }
