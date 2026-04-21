@@ -95,6 +95,9 @@
   border-radius: 3px;
   overflow-x: auto;
   font-size: 12px;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .body pre code {
   background: transparent;
@@ -124,11 +127,6 @@
 }
 .rowClickable[aria-expanded="true"] .chevron {
   color: var(--cyan);
-}
-.body pre {
-  max-width: 100%;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 .body p {
   margin: 6px 0;

@@ -29,6 +29,7 @@ const JournalBody = ({ tier, id }: { tier: Tier; id: string }) => {
   const { data, isLoading, error } = useQuery<BodyResponse>({
     queryKey: ['journal-body', tier, id] as const,
     queryFn: () => fetchJson<BodyResponse>(`/api/journals/${tier}/${encodeURIComponent(id)}`),
+    staleTime: Number.POSITIVE_INFINITY,
   });
   if (isLoading) return <div className={s.bodyLoading}>loading…</div>;
   if (error) return <div className={s.bodyError}>{(error as Error).message}</div>;
