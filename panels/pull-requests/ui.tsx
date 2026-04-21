@@ -159,11 +159,7 @@ export const UI = () => {
               </div>
               {filteredAuthored.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredAuthored.map((pr) => (
-                <Row
-                  key={`${pr.repo}-${pr.number}`}
-                  pr={pr}
-                  showRepo={activeRepo === '__all__'}
-                />
+                <Row key={`${pr.repo}-${pr.number}`} pr={pr} showRepo={activeRepo === '__all__'} />
               ))}
             </div>
             <div className={s.section}>
@@ -175,11 +171,7 @@ export const UI = () => {
               </div>
               {filteredReview.length === 0 && <p style={{ color: 'var(--fg-dim)' }}>none</p>}
               {filteredReview.map((pr) => (
-                <Row
-                  key={`${pr.repo}-${pr.number}`}
-                  pr={pr}
-                  showRepo={activeRepo === '__all__'}
-                />
+                <Row key={`${pr.repo}-${pr.number}`} pr={pr} showRepo={activeRepo === '__all__'} />
               ))}
             </div>
           </>
