@@ -340,6 +340,7 @@ export async function openSessionInGhostty(
 ): Promise<void> {
   const runner = opts.runner ?? defaultRunner;
   try {
+    // execFile passes args directly to the binary (no shell parsing), so cwd doesn't need shell escaping.
     await runner('open', [
       '-na',
       'Ghostty',

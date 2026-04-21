@@ -503,4 +503,16 @@ describe('openSessionInGhostty', () => {
       openSessionInGhostty('abc', '/p', { runner }),
     ).rejects.toBeInstanceOf(SpawnError);
   });
+
+  test('truncates long error messages to 200 chars', async () => {
+    const { openSessionInGhostty, SpawnError } = await import('./sessions');
+    const longMsg = 'x'.repeat(300);
+    const runner = async () => {
+      throw new Error(longMsg);
+    };
+    await expect(openSessionInGhostty('id', '/p', { runner })).rejects.toMatchObject({
+      code: 'SPAWN_FAILED',
+      message: 'x'.repeat(200),
+    });
+  });
 });
