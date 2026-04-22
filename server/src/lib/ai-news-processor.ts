@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { logger } from '../logger';
 import {
@@ -13,12 +12,7 @@ import {
 } from './ai-news';
 import { buildPrompt, isValidLlmOutput } from './ai-news-prompt';
 import { extractJson } from './braindump-processor';
-
-export type RunClaude = (args: {
-  prompt: string;
-  input: string;
-  timeoutMs: number;
-}) => Promise<string>;
+import { type RunClaude, defaultRunClaude } from './run-claude';
 
 export type TickDeps = DirDeps & {
   runClaude?: RunClaude;
@@ -127,44 +121,3 @@ export async function runDigest(deps: RunDigestDeps = {}): Promise<void> {
     logger.warn({ err: msg }, 'ai-news digest run failed');
   }
 }
-
-// ---- Default runClaude (spawns `claude -p`) ---------------------------
-
-export const defaultRunClaude: RunClaude = async ({ prompt, input, timeoutMs }) => {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn('claude', ['-p'], { stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error(`claude -p timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve(stdout);
-      else
-        reject(
-          new Error(
-            `claude -p exited with code ${code}${stderr ? `: ${stderr.slice(0, 200)}` : ''}`,
-          ),
-        );
-    });
-
-    // Swallow EPIPE if claude exits before we finish writing; the close handler reports the real cause.
-    child.stdin.on('error', () => {});
-    child.stdin.end(`${prompt}\n\n${input}`.trim());
-  });
-};
