@@ -5,25 +5,22 @@ import {
   DigestReadError,
   ITEM_ID_REGEX,
   ItemNotFoundError,
+  formatLocalDate,
   listStarred,
   readDigest,
   readState,
   toggleStar,
 } from '@cc/server/lib/ai-news';
 import { runDigest } from '@cc/server/lib/ai-news-processor';
+import { logger } from '@cc/server/logger';
 import { Hono } from 'hono';
 
 export const api = new Hono();
 
-function todayLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 api.get('/today', async (c) => {
   const state = await readState();
   try {
-    const digest = await readDigest(todayLocal());
+    const digest = await readDigest(formatLocalDate(new Date()));
     return c.json(ok({ digest, state }));
   } catch (err) {
     if (err instanceof DigestNotFoundError) return c.json(ok({ digest: null, state }));
@@ -70,8 +67,8 @@ api.post('/digests/:date/items/:id/star', async (c) => {
 api.post('/run', async (c) => {
   const state = await readState();
   if (state.isRunning) return c.json(fail('RUN_IN_PROGRESS', 'a run is in progress'), 409);
-  void runDigest({ force: true }).catch(() => {
-    /* runDigest captures its own failures into state.lastError */
-  });
+  void runDigest({ force: true }).catch((err) =>
+    logger.warn({ err: (err as Error).message }, 'ai-news /run background failure'),
+  );
   return c.json(ok({ triggered: true as const }));
 });

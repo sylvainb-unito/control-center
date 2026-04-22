@@ -40,6 +40,15 @@ export type AiNewsState = {
 export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 export const ITEM_ID_REGEX = /^[A-Za-z0-9-]+$/;
 
+// ---- Date helpers -----------------------------------------------------
+
+export function formatLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 // ---- Errors -----------------------------------------------------------
 
 export class DigestNotFoundError extends Error {

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./envelope": "./src/envelope.ts",
+    "./logger": "./src/logger.ts",
     "./lib/git": "./src/lib/git.ts",
     "./lib/gh": "./src/lib/gh.ts",
     "./lib/sessions": "./src/lib/sessions.ts",

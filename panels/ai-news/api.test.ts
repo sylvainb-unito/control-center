@@ -1,16 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { formatLocalDate } from '@cc/server/lib/ai-news';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { api } from './api';
 
 function tmpHome(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cc-ai-news-api-'));
-}
-
-function todayLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 describe('ai-news api', () => {
@@ -50,7 +46,7 @@ describe('ai-news api', () => {
   test('GET /today returns populated digest when file exists', async () => {
     const dir = path.join(home, '.claude', 'ai-news', 'digests');
     fs.mkdirSync(dir, { recursive: true });
-    const d = todayLocal();
+    const d = formatLocalDate(new Date());
     fs.writeFileSync(
       path.join(dir, `${d}.json`),
       JSON.stringify({
@@ -189,6 +185,27 @@ describe('ai-news api', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ starred: 'yes' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('BAD_REQUEST');
+  });
+
+  test('GET /today returns 500 READ_FAILED when digest JSON is malformed', async () => {
+    const dir = path.join(home, '.claude', 'ai-news', 'digests');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${formatLocalDate(new Date())}.json`), '{not json');
+    const res = await call('/today');
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { ok: false; error: { code: string } };
+    expect(body.error.code).toBe('READ_FAILED');
+  });
+
+  test('POST /digests/:date/items/:id/star returns 400 on invalid JSON body', async () => {
+    const res = await call('/digests/2026-04-21/items/abc/star', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not json',
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: { code: string } };
