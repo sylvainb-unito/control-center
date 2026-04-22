@@ -6,6 +6,7 @@ import { fetchJson } from '../../web/src/lib/fetchJson';
 import type {
   AiNewsCategory,
   AiNewsItem,
+  RunResponse,
   StarResponse,
   StarredResponse,
   TodayResponse,
@@ -99,6 +100,47 @@ export const UI = () => {
           body: JSON.stringify({ starred }),
         },
       ),
+    onMutate: async ({ date, id, starred }) => {
+      await qc.cancelQueries({ queryKey: QK_TODAY });
+      await qc.cancelQueries({ queryKey: QK_STARRED });
+      const prevToday = qc.getQueryData<TodayResponse>(QK_TODAY);
+      const prevStarred = qc.getQueryData<StarredResponse>(QK_STARRED);
+
+      if (prevToday?.digest && prevToday.digest.date === date) {
+        qc.setQueryData<TodayResponse>(QK_TODAY, {
+          ...prevToday,
+          digest: {
+            ...prevToday.digest,
+            items: prevToday.digest.items.map((it) => (it.id === id ? { ...it, starred } : it)),
+          },
+        });
+      }
+      if (prevStarred) {
+        if (starred) {
+          const found: AiNewsItem | undefined = prevToday?.digest?.items.find((it) => it.id === id);
+          if (found) {
+            const alreadyIn = prevStarred.items.some(
+              (it) => it.id === id && it.digestDate === date,
+            );
+            if (!alreadyIn) {
+              qc.setQueryData<StarredResponse>(QK_STARRED, {
+                items: [{ ...found, starred: true, digestDate: date }, ...prevStarred.items],
+              });
+            }
+          }
+        } else {
+          qc.setQueryData<StarredResponse>(QK_STARRED, {
+            items: prevStarred.items.filter((it) => !(it.id === id && it.digestDate === date)),
+          });
+        }
+      }
+
+      return { prevToday, prevStarred };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prevToday !== undefined) qc.setQueryData(QK_TODAY, context.prevToday);
+      if (context?.prevStarred !== undefined) qc.setQueryData(QK_STARRED, context.prevStarred);
+    },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: QK_TODAY });
       void qc.invalidateQueries({ queryKey: QK_STARRED });
@@ -106,7 +148,7 @@ export const UI = () => {
   });
 
   const runMutation = useMutation({
-    mutationFn: async () => fetchJson<{ triggered: true }>('/api/ai-news/run', { method: 'POST' }),
+    mutationFn: async () => fetchJson<RunResponse>('/api/ai-news/run', { method: 'POST' }),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: QK_TODAY });
     },
@@ -153,29 +195,7 @@ export const UI = () => {
       <div className={s.status}>{status}</div>
 
       {tab === 'digest' ? (
-        digest ? (
-          <>
-            <div className={s.summary}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{digest.summary}</ReactMarkdown>
-            </div>
-            <div className={s.items}>
-              {digest.items.map((item) => (
-                <ItemRow
-                  key={item.id}
-                  item={item}
-                  date={digest.date}
-                  onToggleStar={(args) => starMutation.mutate(args)}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className={s.empty}>
-            {state?.isRunning
-              ? 'No digest yet today — running shortly.'
-              : 'No digest yet today — click Refresh to generate one.'}
-          </div>
-        )
+        <DigestTab query={todayQuery} onToggleStar={(args) => starMutation.mutate(args)} />
       ) : (
         <StarredTab query={starredQuery} onToggleStar={(args) => starMutation.mutate(args)} />
       )}
@@ -221,6 +241,40 @@ const StarredTab = ({
           </div>
         );
       })}
+    </div>
+  );
+};
+
+const DigestTab = ({
+  query,
+  onToggleStar,
+}: {
+  query: ReturnType<typeof useQuery<TodayResponse>>;
+  onToggleStar: (args: ToggleArgs) => void;
+}) => {
+  if (query.isLoading) return <div className={s.empty}>Loading…</div>;
+  if (query.error) return <div className={s.empty}>Failed: {(query.error as Error).message}</div>;
+  const digest = query.data?.digest;
+  const state = query.data?.state;
+  if (digest) {
+    return (
+      <>
+        <div className={s.summary}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{digest.summary}</ReactMarkdown>
+        </div>
+        <div className={s.items}>
+          {digest.items.map((item) => (
+            <ItemRow key={item.id} item={item} date={digest.date} onToggleStar={onToggleStar} />
+          ))}
+        </div>
+      </>
+    );
+  }
+  return (
+    <div className={s.empty}>
+      {state?.isRunning
+        ? 'No digest yet today — running shortly.'
+        : 'No digest yet today — click Refresh to generate one.'}
     </div>
   );
 };
