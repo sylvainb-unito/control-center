@@ -228,6 +228,68 @@ x`,
   });
 });
 
+describe('processPending — retryFailed', () => {
+  test('skips terminal-failed entries by default', async () => {
+    const { processPending } = await import('./braindump-processor');
+    const fs = makeFakeFs({
+      a7f3: `---
+id: a7f3
+capturedAt: 2026-04-21T14:32:08.412Z
+status: failed
+failure:
+  attempts: 3
+  lastError: prev
+  lastAttemptAt: 2026-04-21T14:00:00.000Z
+---
+x`,
+    });
+    const runClaude = vi.fn();
+    const result = await processPending({
+      home: fs.home,
+      readdir: fs.readdir,
+      readFile: fs.readFile,
+      writeFile: fs.writeFile,
+      runClaude,
+      now: () => new Date('2026-04-21T15:00:00.000Z'),
+    });
+    expect(runClaude).not.toHaveBeenCalled();
+    expect(result).toEqual({ processed: 0, failed: 0, skipped: 0 });
+  });
+
+  test('retryFailed: true resets terminal-failed entry and re-processes it', async () => {
+    const { processPending } = await import('./braindump-processor');
+    const fs = makeFakeFs({
+      a7f3: `---
+id: a7f3
+capturedAt: 2026-04-21T14:32:08.412Z
+status: failed
+failure:
+  attempts: 3
+  lastError: prev
+  lastAttemptAt: 2026-04-21T14:00:00.000Z
+---
+x`,
+    });
+    const runClaude = vi.fn(async () =>
+      JSON.stringify({ category: 'thought', title: 't', summary: 's', tags: [] }),
+    );
+    const result = await processPending({
+      home: fs.home,
+      readdir: fs.readdir,
+      readFile: fs.readFile,
+      writeFile: fs.writeFile,
+      runClaude,
+      now: () => new Date('2026-04-21T15:00:00.000Z'),
+      retryFailed: true,
+    });
+    expect(runClaude).toHaveBeenCalledOnce();
+    expect(result.processed).toBe(1);
+    const final = fs.writes.at(-1)?.data ?? '';
+    expect(final).toContain('status: processed');
+    expect(final).not.toContain('attempts:');
+  });
+});
+
 describe('processPending — timeout threading', () => {
   test('runClaude receives DEFAULT_TIMEOUT_MS when deps.timeoutMs is omitted', async () => {
     const { processPending, _resetForTests } = await import('./braindump-processor');

@@ -8,6 +8,7 @@ import {
   markEntryProcessed,
   markEntryProcessing,
   readEntryBody,
+  reprocessEntry,
 } from './braindump';
 import { PROMPT, isValidLlmOutput } from './braindump-prompt';
 import { type RunClaude, defaultRunClaude } from './run-claude';
@@ -17,6 +18,10 @@ export type ProcessDeps = ListDeps &
     runClaude?: RunClaude;
     now?: () => Date;
     timeoutMs?: number;
+    // When true, also retry entries currently in `failed` (terminal) state. The
+    // hourly tick passes false so the 3-attempt cap holds; the user-triggered
+    // "process now" passes true so a manual click can recover from a stuck batch.
+    retryFailed?: boolean;
   };
 
 export type ProcessResult = {
@@ -41,7 +46,9 @@ export async function processPending(deps: ProcessDeps = {}): Promise<ProcessRes
   isProcessing = true;
   try {
     const { inbox } = await listEntries(deps);
-    const pending = inbox.filter((e) => e.status === 'new');
+    const pending = inbox.filter(
+      (e) => e.status === 'new' || (deps.retryFailed === true && e.status === 'failed'),
+    );
     let processed = 0;
     let failed = 0;
     let skipped = 0;
@@ -50,6 +57,10 @@ export async function processPending(deps: ProcessDeps = {}): Promise<ProcessRes
     const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     for (const entry of pending) {
+      // Reset terminal-failed entries so attempts counts from 0 again on this manual run.
+      if (entry.status === 'failed') {
+        await reprocessEntry(entry.id, deps);
+      }
       const outcome = await processOne(entry, { ...deps, runClaude, now, timeoutMs });
       if (outcome === 'processed') processed++;
       else if (outcome === 'failed') failed++;

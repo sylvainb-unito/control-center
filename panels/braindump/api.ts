@@ -45,7 +45,7 @@ api.get('/', async (c) => {
 });
 
 api.post('/process', async (c) => {
-  const data = await processPending();
+  const data = await processPending({ retryFailed: true });
   return c.json(ok(data));
 });
 
