@@ -23,7 +23,7 @@ export type TickDeps = DirDeps & {
 
 export type RunDigestDeps = TickDeps & { force?: boolean };
 
-const DEFAULT_TIMEOUT_MS = 180_000;
+const DEFAULT_TIMEOUT_MS = 600_000;
 const RETAIN_DAYS = 7;
 
 let isTickInFlight = false;
