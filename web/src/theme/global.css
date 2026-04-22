@@ -70,6 +70,17 @@ body::before {
   text-shadow: var(--glow-cyan);
   margin: 0;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-title-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 30%;
+  box-shadow: 0 0 10px rgba(1, 205, 254, 0.6);
 }
 .app-title-word + .app-title-word {
   margin-left: 0.4em;

@@ -6,7 +6,7 @@ import { useGlobalShortcut } from './lib/useGlobalShortcut';
 import { panels } from './panels';
 
 const SPAN: Record<PanelSize, string> = { sm: 'span 4', md: 'span 6', lg: 'span 8' };
-const TITLE_WORDS = ['Unito', 'Control', 'Center'];
+const TITLE_WORDS = ['Neon', 'Info', 'Center'];
 
 function AppShell() {
   const { open } = useCaptureModal();
@@ -20,6 +20,7 @@ function AppShell() {
     <main className="app">
       <div className="top-bar">
         <h1 className="app-title">
+          <img className="app-title-icon" src="/nico.png" alt="" aria-hidden="true" />
           {TITLE_WORDS.map((word) => (
             <span key={word} className="app-title-word">
               <span className="app-title-cap">{word[0]}</span>
