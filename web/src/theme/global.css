@@ -82,14 +82,12 @@ body::before {
   object-position: center 30%;
   box-shadow: 0 0 10px rgba(1, 205, 254, 0.6);
 }
-.app-title-word + .app-title-word {
-  margin-left: 0.4em;
-}
 .app-title-cap {
   font-size: 22px;
 }
 .app-title-rest {
   font-size: 14px;
+  opacity: 0.75;
 }
 .panel-grid {
   display: grid;
