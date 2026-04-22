@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import pkg from '../package.json' with { type: 'json' };
 import { fail, ok } from './envelope';
+import { tick as aiNewsTick } from './lib/ai-news-processor';
 import { processPending } from './lib/braindump-processor';
 import { logger } from './logger';
 import { registerRoutes } from './routes';
@@ -53,6 +54,14 @@ serve({ fetch: app.fetch, port, hostname }, (info) => {
   setInterval(() => {
     void processPending().catch((err) =>
       logger.warn({ err: (err as Error).message }, 'braindump hourly tick failed'),
+    );
+  }, ONE_HOUR_MS);
+  void aiNewsTick().catch((err) =>
+    logger.warn({ err: (err as Error).message }, 'ai-news boot tick failed'),
+  );
+  setInterval(() => {
+    void aiNewsTick().catch((err) =>
+      logger.warn({ err: (err as Error).message }, 'ai-news hourly tick failed'),
     );
   }, ONE_HOUR_MS);
 });
