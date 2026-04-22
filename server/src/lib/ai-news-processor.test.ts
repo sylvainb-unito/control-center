@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { listDigests, readDigest, readState } from './ai-news';
-import { _resetForTests, runDigest, tick } from './ai-news-processor';
+import { _resetForTests, boot, runDigest, tick } from './ai-news-processor';
 
 function tmpHome(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cc-ai-news-proc-'));
@@ -104,6 +104,19 @@ describe('ai-news processor', () => {
     expect(state.isRunning).toBe(false);
     expect(state.lastError).toBeDefined();
     expect(state.lastError).toMatch(/JSON|schema|invalid/i);
+  });
+
+  test('boot clears stale state.isRunning from a prior crashed run', async () => {
+    const dir = path.join(home, '.claude', 'ai-news');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'state.json'),
+      JSON.stringify({ isRunning: true, lastRunAt: '2026-04-20T07:00:00Z' }),
+    );
+    await boot({ home });
+    const state = await readState({ home });
+    expect(state.isRunning).toBe(false);
+    expect(state.lastRunAt).toBe('2026-04-20T07:00:00Z');
   });
 
   test('runDigest with force overwrites existing file (no throw)', async () => {

@@ -42,6 +42,14 @@ function defaultRandomId(): string {
   return crypto.randomBytes(8).toString('hex');
 }
 
+export async function boot(deps: DirDeps = {}): Promise<void> {
+  const prev = await readState(deps);
+  if (prev.isRunning) {
+    await writeState({ ...prev, isRunning: false }, deps);
+    logger.warn('ai-news: cleared stale isRunning from previous run');
+  }
+}
+
 export async function tick(deps: TickDeps = {}): Promise<void> {
   if (isTickInFlight) {
     logger.debug('ai-news tick skipped (reentrancy)');
