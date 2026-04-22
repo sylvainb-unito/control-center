@@ -165,8 +165,19 @@ export const UI = () => {
         : '';
 
   return (
-    <div className={s.root}>
-      <div className={s.header}>
+    <div className="panel">
+      <div className="panel-header">
+        AI News
+        <button
+          type="button"
+          className="panel-refresh"
+          disabled={state?.isRunning || runMutation.isPending}
+          onClick={() => runMutation.mutate()}
+        >
+          {state?.isRunning ? 'running…' : 'refresh'}
+        </button>
+      </div>
+      <div className="panel-body">
         <div className={s.tabs}>
           <button
             type="button"
@@ -183,22 +194,14 @@ export const UI = () => {
             Starred
           </button>
         </div>
-        <button
-          type="button"
-          className={s.refresh}
-          disabled={state?.isRunning || runMutation.isPending}
-          onClick={() => runMutation.mutate()}
-        >
-          Refresh
-        </button>
-      </div>
-      <div className={s.status}>{status}</div>
+        <div className={s.status}>{status}</div>
 
-      {tab === 'digest' ? (
-        <DigestTab query={todayQuery} onToggleStar={(args) => starMutation.mutate(args)} />
-      ) : (
-        <StarredTab query={starredQuery} onToggleStar={(args) => starMutation.mutate(args)} />
-      )}
+        {tab === 'digest' ? (
+          <DigestTab query={todayQuery} onToggleStar={(args) => starMutation.mutate(args)} />
+        ) : (
+          <StarredTab query={starredQuery} onToggleStar={(args) => starMutation.mutate(args)} />
+        )}
+      </div>
     </div>
   );
 };
