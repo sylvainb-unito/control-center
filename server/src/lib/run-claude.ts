@@ -8,17 +8,19 @@ export type RunClaudeArgs = {
 
 export type RunClaude = (args: RunClaudeArgs) => Promise<string>;
 
-// Spawns `claude -p` through a login shell so PATH resolves under launchd.
-// Bare `spawn('claude', ...)` fails with ENOENT in prod because launchd's
-// child processes go through /usr/bin/login which doesn't source .zshrc/.zprofile.
-// `-l` (login, no `-i`) sources .zprofile — enough to put claude on PATH — without
-// loading .zshrc, which would trigger nvm's cd-hook preamble and pollute stdout.
+// Spawn `claude` directly with PATH augmented to include ~/.local/bin (where the
+// Claude Code CLI installs). The launchd daemon inherits a minimal PATH that doesn't
+// include user-local bins, so we add it explicitly here — cleaner than wrapping
+// in a shell, and avoids nvm's chpwd hook polluting stdout.
 // --permission-mode bypassPermissions is required so WebSearch runs non-interactively
 // (without it, claude -p denies the tool and returns an explanation instead of JSON).
 export const defaultRunClaude: RunClaude = async ({ prompt, input, timeoutMs }) => {
+  const home = process.env.HOME ?? '';
+  const augmentedPath = [`${home}/.local/bin`, process.env.PATH ?? '/usr/bin:/bin'].join(':');
   return new Promise<string>((resolve, reject) => {
-    const child = spawn('/bin/zsh', ['-lc', 'claude -p --permission-mode bypassPermissions'], {
+    const child = spawn('claude', ['-p', '--permission-mode', 'bypassPermissions'], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: augmentedPath },
     });
     let stdout = '';
     let stderr = '';
