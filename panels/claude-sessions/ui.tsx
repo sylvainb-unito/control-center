@@ -44,6 +44,7 @@ function formatTokens(tokens: {
 
 type MergedSession = SessionSummary & {
   mergedCount: number; // 1 when not merged, >=2 when merged
+  sessionIds: string[]; // every sessionId that rolled up into this row (for bulk hide)
 };
 
 function mergeByProject(sessions: SessionSummary[]): MergedSession[] {
@@ -59,7 +60,7 @@ function mergeByProject(sessions: SessionSummary[]): MergedSession[] {
     if (group.length === 1) {
       const only = group[0];
       if (!only) continue;
-      merged.push({ ...only, mergedCount: 1 });
+      merged.push({ ...only, mergedCount: 1, sessionIds: [only.sessionId] });
       continue;
     }
     const sorted = [...group].sort((a, b) =>
@@ -68,12 +69,12 @@ function mergeByProject(sessions: SessionSummary[]): MergedSession[] {
     const latest = sorted[0];
     if (!latest) continue;
     const summed = sorted.reduce(
-      (acc, s) => {
-        acc.messageCount += s.messageCount;
-        acc.tokens.input += s.tokens.input;
-        acc.tokens.output += s.tokens.output;
-        acc.tokens.cacheRead += s.tokens.cacheRead;
-        acc.tokens.cacheCreation += s.tokens.cacheCreation;
+      (acc, session) => {
+        acc.messageCount += session.messageCount;
+        acc.tokens.input += session.tokens.input;
+        acc.tokens.output += session.tokens.output;
+        acc.tokens.cacheRead += session.tokens.cacheRead;
+        acc.tokens.cacheCreation += session.tokens.cacheCreation;
         return acc;
       },
       {
@@ -96,8 +97,13 @@ function mergeByProject(sessions: SessionSummary[]): MergedSession[] {
       messageCount: summed.messageCount,
       tokens: summed.tokens,
       primaryModel: latestByTokens?.primaryModel ?? latest.primaryModel,
-      isLive: sorted.some((s) => s.isLive),
+      isLive: sorted.some((session) => session.isLive),
+      // A merged row is "hidden" only if every session in it is hidden. If any visible
+      // sessions exist in the group, the row shows. This only matters when the API was
+      // called with includeHidden=true.
+      isHidden: sorted.every((session) => session.isHidden),
       mergedCount: sorted.length,
+      sessionIds: sorted.map((session) => session.sessionId),
     });
   }
 
@@ -113,6 +119,7 @@ function buildRowTooltip(row: MergedSession): string {
   parts.push(`Model: ${row.primaryModel ?? '—'}`);
   parts.push(`${row.messageCount} messages`);
   if (row.mergedCount > 1) parts.push(`${row.mergedCount} sessions merged`);
+  if (row.isHidden) parts.push('hidden');
   return parts.join(' · ');
 }
 
@@ -124,9 +131,12 @@ type OpenArgs = { sessionId: string; cwd: string };
 
 export const UI = () => {
   const qc = useQueryClient();
+  const [showHidden, setShowHidden] = useState(false);
+
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
-    queryKey: QK,
-    queryFn: () => fetchJson<ListResponse>('/api/claude-sessions'),
+    queryKey: [...QK, { showHidden }],
+    queryFn: () =>
+      fetchJson<ListResponse>(`/api/claude-sessions${showHidden ? '?includeHidden=true' : ''}`),
     staleTime: 30_000,
     refetchInterval: (q) => {
       const latest = q.state.data as ListResponse | undefined;
@@ -171,18 +181,42 @@ export const UI = () => {
     },
   });
 
+  const hide = useMutation({
+    mutationFn: async (sessionIds: string[]) =>
+      fetchJson<{ hidden: string[] }>('/api/claude-sessions/hide', {
+        method: 'POST',
+        body: JSON.stringify({ sessionIds }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+  });
+
+  const unhide = useMutation({
+    mutationFn: async (sessionIds: string[]) =>
+      fetchJson<{ hidden: string[] }>('/api/claude-sessions/unhide', {
+        method: 'POST',
+        body: JSON.stringify({ sessionIds }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+  });
+
   const now = new Date();
 
   const renderRow = (row: MergedSession, nowDate: Date) => {
     const rowClassNames = [
       s.row,
       row.isLive ? s.rowLive : s.rowClickable,
+      row.isHidden ? s.rowHidden : '',
       flashingId === row.sessionId ? s.rowFlash : '',
     ]
       .filter(Boolean)
       .join(' ');
     const requestOpen = () => setPendingOpen(row);
     const onClick = row.isLive ? undefined : requestOpen;
+    const toggleHidden = (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (row.isHidden) unhide.mutate(row.sessionIds);
+      else hide.mutate(row.sessionIds);
+    };
     return (
       <div key={row.sessionId}>
         <div
@@ -212,6 +246,15 @@ export const UI = () => {
           </span>
           <span className={s.lastActive}>{humanizeRelative(row.lastActivityAt, nowDate)}</span>
           <span className={s.tokens}>{formatTokens(row.tokens)}</span>
+          <button
+            type="button"
+            className={s.rowAction}
+            onClick={toggleHidden}
+            title={row.isHidden ? 'Unhide' : 'Hide from panel'}
+            aria-label={row.isHidden ? 'Unhide session' : 'Hide session'}
+          >
+            {row.isHidden ? '↩' : '✕'}
+          </button>
         </div>
         {rowError[row.sessionId] && (
           <p className={s.rowError}>open failed: {rowError[row.sessionId]}</p>
@@ -220,13 +263,28 @@ export const UI = () => {
     );
   };
 
+  const mergedRows = data ? mergeByProject(data.sessions) : [];
+  const hiddenCount = mergedRows.filter((row) => row.isHidden).length;
+
   return (
     <div className="panel">
       <div className="panel-header">
         Claude Sessions
-        <button type="button" className="panel-refresh" onClick={() => refetch()}>
-          refresh
-        </button>
+        <div className={s.panelToolbar}>
+          {(showHidden || hiddenCount > 0) && (
+            <button
+              type="button"
+              className={[s.toolbarToggle, showHidden ? s.active : ''].filter(Boolean).join(' ')}
+              onClick={() => setShowHidden((v) => !v)}
+              title={showHidden ? 'Hide dismissed sessions from view' : 'Reveal dismissed sessions'}
+            >
+              {showHidden ? `hiding ${hiddenCount}` : 'show hidden'}
+            </button>
+          )}
+          <button type="button" className="panel-refresh" onClick={() => refetch()}>
+            refresh
+          </button>
+        </div>
       </div>
       <div className="panel-body">
         {isLoading && <p style={{ color: 'var(--fg-dim)' }}>loading…</p>}
@@ -239,7 +297,6 @@ export const UI = () => {
         {data &&
           data.sessions.length > 0 &&
           (() => {
-            const mergedRows = mergeByProject(data.sessions);
             const liveRows = mergedRows.filter((r) => r.isLive);
             const otherRows = mergedRows.filter((r) => !r.isLive);
             const showHeaders = liveRows.length > 0 && otherRows.length > 0;

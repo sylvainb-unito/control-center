@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { logger } from '../logger';
 import { defaultGlobber, defaultStat } from './fs-helpers';
 import type { Runner } from './git';
+import { type HiddenStore, makeHiddenStore } from './hidden-sessions';
 
 export type TokenBucket = {
   input: number;
@@ -156,11 +157,14 @@ export type SessionSummary = {
   primaryModel: string | null;
   tokens: TokenBucket;
   isLive: boolean;
+  isHidden: boolean;
 };
 
 export type ListOptions = {
   officeDays: number;
   clearCache?: boolean;
+  /** When true, hidden sessions are returned with isHidden=true instead of being filtered out. */
+  includeHidden?: boolean;
 };
 
 export type ListDeps = {
@@ -170,6 +174,7 @@ export type ListDeps = {
   stat?: (p: string) => Promise<{ mtimeMs: number; size: number }>;
   parser?: (stream: Readable, sessionId: string) => Promise<ParsedSession>;
   openStream?: (p: string) => Promise<Readable>;
+  hiddenStore?: HiddenStore;
 };
 
 type CacheEntry = { mtime: number; size: number; parsed: ParsedSession };
@@ -210,6 +215,8 @@ export async function listRecentSessions(
   const stat = deps.stat ?? defaultStat;
   const parser = deps.parser ?? parseSessionFile;
   const openStream = deps.openStream ?? defaultOpenStream;
+  const hiddenStore = deps.hiddenStore ?? makeHiddenStore({ home });
+  const hidden = await hiddenStore.list();
 
   const cutoff = officeDayCutoff(new Date(now()), opts.officeDays).getTime();
   const pattern = path.join(home, '.claude', 'projects', '*', '*.jsonl');
@@ -244,6 +251,8 @@ export async function listRecentSessions(
 
     const { parsed } = entry;
     if (!parsed.startedAt || parsed.messageCount === 0) continue; // no parseable lines, or degenerate session → skip
+    const isHidden = hidden.has(sessionId);
+    if (isHidden && !opts.includeHidden) continue;
     const tokens = sumTokens(parsed.tokensByModel);
 
     rows.push({
@@ -258,6 +267,7 @@ export async function listRecentSessions(
       primaryModel: parsed.primaryModel,
       tokens,
       isLive: st.mtimeMs >= liveThreshold,
+      isHidden,
     });
   }
 

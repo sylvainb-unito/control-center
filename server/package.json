@@ -9,6 +9,7 @@
     "./lib/git": "./src/lib/git.ts",
     "./lib/gh": "./src/lib/gh.ts",
     "./lib/sessions": "./src/lib/sessions.ts",
+    "./lib/hidden-sessions": "./src/lib/hidden-sessions.ts",
     "./lib/journals": "./src/lib/journals.ts",
     "./lib/braindump": "./src/lib/braindump.ts",
     "./lib/braindump-processor": "./src/lib/braindump-processor.ts",

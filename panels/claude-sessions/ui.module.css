@@ -84,6 +84,47 @@
     background: transparent;
   }
 }
+.rowHidden {
+  opacity: 0.45;
+}
+.rowAction {
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 80ms ease, color 80ms ease;
+}
+.rowAction:hover {
+  color: var(--pink);
+}
+.row:hover .rowAction,
+.rowHidden .rowAction {
+  opacity: 1;
+}
+.panelToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.toolbarToggle {
+  background: transparent;
+  border: 1px solid var(--fg-dim);
+  color: var(--fg-dim);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+.toolbarToggle.active {
+  color: var(--pink);
+  border-color: var(--pink);
+}
 .modal {
   position: fixed;
   inset: 0;

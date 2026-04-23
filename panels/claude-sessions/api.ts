@@ -1,4 +1,5 @@
 import { fail, ok } from '@cc/server/envelope';
+import { makeHiddenStore } from '@cc/server/lib/hidden-sessions';
 import {
   type SessionSummary,
   SpawnError,
@@ -14,7 +15,11 @@ export const api = new Hono();
 
 api.get('/', async (c) => {
   const nowMs = Date.now();
-  const sessions = await listRecentSessions({ officeDays: OFFICE_DAYS }, { now: () => nowMs });
+  const includeHidden = c.req.query('includeHidden') === 'true';
+  const sessions = await listRecentSessions(
+    { officeDays: OFFICE_DAYS, includeHidden },
+    { now: () => nowMs },
+  );
   const stats = sessions.reduce(
     (acc, s) => {
       acc.count++;
@@ -41,6 +46,36 @@ api.get('/', async (c) => {
       window: { officeDays: OFFICE_DAYS, cutoffAt },
     }),
   );
+});
+
+api.post('/hide', async (c) => {
+  const body = await c.req
+    .json<{ sessionIds?: string[] }>()
+    .catch(() => ({}) as { sessionIds?: string[] });
+  if (
+    !Array.isArray(body.sessionIds) ||
+    body.sessionIds.some((id: unknown) => typeof id !== 'string')
+  ) {
+    return c.json(fail('BAD_REQUEST', 'sessionIds: string[] required'), 400);
+  }
+  const store = makeHiddenStore();
+  const hidden = await store.add(body.sessionIds);
+  return c.json(ok({ hidden: [...hidden].sort() }));
+});
+
+api.post('/unhide', async (c) => {
+  const body = await c.req
+    .json<{ sessionIds?: string[] }>()
+    .catch(() => ({}) as { sessionIds?: string[] });
+  if (
+    !Array.isArray(body.sessionIds) ||
+    body.sessionIds.some((id: unknown) => typeof id !== 'string')
+  ) {
+    return c.json(fail('BAD_REQUEST', 'sessionIds: string[] required'), 400);
+  }
+  const store = makeHiddenStore();
+  const hidden = await store.remove(body.sessionIds);
+  return c.json(ok({ hidden: [...hidden].sort() }));
 });
 
 api.post('/open', async (c) => {

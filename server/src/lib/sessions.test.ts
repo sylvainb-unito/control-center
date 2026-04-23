@@ -286,6 +286,11 @@ describe('listRecentSessions', () => {
         tokensByModel: {},
       }),
       openStream: async () => Readable.from([]),
+      hiddenStore: {
+        list: async () => new Set<string>(),
+        add: async () => new Set<string>(),
+        remove: async () => new Set<string>(),
+      },
     };
     return { ...base, ...overrides };
   }
@@ -535,6 +540,48 @@ describe('listRecentSessions', () => {
     });
     const result = await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
     expect(result).toEqual([]);
+  });
+
+  test('filters hidden sessionIds by default; includeHidden returns them with isHidden=true', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const mkParser = (id: string) => async () => ({
+      sessionId: id,
+      cwd: '/Users/u/Workspace/proj',
+      gitBranch: null,
+      customTitle: null,
+      startedAt: '2026-04-22T10:00:00Z',
+      lastActivityAt: '2026-04-22T10:00:00Z',
+      messageCount: 1,
+      primaryModel: null,
+      tokensByModel: {},
+    });
+
+    const baseDeps = makeDeps({
+      globber: async () => [
+        '/home/u/.claude/projects/proj-1/visible.jsonl',
+        '/home/u/.claude/projects/proj-1/hidden-1.jsonl',
+      ],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async (_stream, id) => mkParser(id)(),
+      hiddenStore: {
+        list: async () => new Set(['hidden-1']),
+        add: async () => new Set(['hidden-1']),
+        remove: async () => new Set<string>(),
+      },
+    });
+
+    // Default: hidden is filtered out.
+    const filtered = await listRecentSessions({ officeDays: 10, clearCache: true }, baseDeps);
+    expect(filtered.map((s) => s.sessionId)).toEqual(['visible']);
+    expect(filtered[0]?.isHidden).toBe(false);
+
+    // With includeHidden: hidden session returned with isHidden=true.
+    const all = await listRecentSessions(
+      { officeDays: 10, clearCache: true, includeHidden: true },
+      baseDeps,
+    );
+    const map = Object.fromEntries(all.map((s) => [s.sessionId, s.isHidden]));
+    expect(map).toEqual({ visible: false, 'hidden-1': true });
   });
 
   test('skips files whose stat call rejects', async () => {
