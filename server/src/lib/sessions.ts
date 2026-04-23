@@ -305,32 +305,57 @@ const defaultRunner: Runner = async (cmd, args) => {
   return { stdout, stderr };
 };
 
+function appleScriptString(s: string): string {
+  return `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+export function buildOpenSessionAppleScriptArgs(sessionId: string, cwd: string): string[] {
+  // Wrap in a login-interactive zsh so `.zshrc` is sourced (claude lives on a PATH set there).
+  // sessionId is pre-validated to [A-Za-z0-9-]+ at the call site, so it's safe unquoted.
+  const shellCmd = `/bin/zsh -ilc "claude --resume ${sessionId}"`;
+  return [
+    '-e',
+    'tell application "Ghostty"',
+    '-e',
+    'activate',
+    '-e',
+    'set cfg to new surface configuration',
+    '-e',
+    `set initial working directory of cfg to ${appleScriptString(cwd)}`,
+    '-e',
+    `set command of cfg to ${appleScriptString(shellCmd)}`,
+    '-e',
+    'if (count of windows) > 0 then',
+    '-e',
+    'new tab in front window with configuration cfg',
+    '-e',
+    'else',
+    '-e',
+    'new window with configuration cfg',
+    '-e',
+    'end if',
+    '-e',
+    'end tell',
+  ];
+}
+
 export async function openSessionInGhostty(
   sessionId: string,
   cwd: string,
   opts: { runner?: Runner } = {},
 ): Promise<void> {
-  // sessionId is interpolated into a zsh `-ilc` payload below — the only place in this
-  // codebase where a filesystem-derived string reaches a shell-parsed context. Enforce
-  // a tight character set even though session filenames are UUIDs in practice.
+  // sessionId is interpolated into an AppleScript string that Ghostty parses as a shell
+  // command — keep it tight even though session filenames are UUIDs in practice.
   if (!/^[A-Za-z0-9-]+$/.test(sessionId)) {
     throw new SpawnError(`unsafe sessionId: ${sessionId.slice(0, 40)}`);
   }
   const runner = opts.runner ?? defaultRunner;
+  // Ghostty's `-e` CLI flag triggers an un-dismissable confirmation prompt on macOS
+  // (GHSA-q9fg-cpmh-c78x). Ghostty's AppleScript surface (new tab / new window with a
+  // surface configuration) is a separate trust boundary and doesn't prompt, so we drive
+  // it via osascript. Bonus: `new tab in front window` reuses the existing Ghostty window.
   try {
-    // execFile passes args directly to the binary (no shell parsing), so cwd doesn't need shell escaping.
-    // -ilc on zsh loads .zshrc/.zprofile so `claude` resolves on PATH — ghostty's default `-e` goes through
-    // /usr/bin/login which doesn't source shell init. sessionId is character-validated above.
-    await runner('open', [
-      '-a',
-      'Ghostty',
-      '--args',
-      `--working-directory=${cwd}`,
-      '-e',
-      '/bin/zsh',
-      '-ilc',
-      `claude --resume ${sessionId}`,
-    ]);
+    await runner('osascript', buildOpenSessionAppleScriptArgs(sessionId, cwd));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ sessionId, cwd, err: msg }, 'ghostty spawn failed');

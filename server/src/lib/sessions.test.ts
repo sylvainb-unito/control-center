@@ -657,23 +657,32 @@ describe('openSessionInGhostty', () => {
     };
     await openSessionInGhostty('abc-123', '/Users/u/Workspace/proj', { runner });
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.cmd).toBe('open');
-    expect(calls[0]?.args).toEqual([
-      '-a',
-      'Ghostty',
-      '--args',
-      '--working-directory=/Users/u/Workspace/proj',
-      '-e',
-      '/bin/zsh',
-      '-ilc',
-      'claude --resume abc-123',
-    ]);
+    expect(calls[0]?.cmd).toBe('osascript');
+    const args = calls[0]?.args ?? [];
+    // The script should activate Ghostty, build a surface config with the wrapping zsh
+    // command, and branch between new-tab-in-front-window and new-window.
+    const joined = args.join('\n');
+    expect(joined).toContain('tell application "Ghostty"');
+    expect(joined).toContain('set initial working directory of cfg to "/Users/u/Workspace/proj"');
+    expect(joined).toContain('set command of cfg to "/bin/zsh -ilc \\"claude --resume abc-123\\""');
+    expect(joined).toContain('if (count of windows) > 0 then');
+    expect(joined).toContain('new tab in front window with configuration cfg');
+    expect(joined).toContain('new window with configuration cfg');
+  });
+
+  test('AppleScript-escapes cwd containing quotes and backslashes', async () => {
+    const { buildOpenSessionAppleScriptArgs } = await import('./sessions');
+    const args = buildOpenSessionAppleScriptArgs('abc-123', 'back\\slash and "quote"');
+    const joined = args.join('\n');
+    expect(joined).toContain(
+      'set initial working directory of cfg to "back\\\\slash and \\"quote\\""',
+    );
   });
 
   test('throws SpawnError when runner rejects', async () => {
     const { openSessionInGhostty, SpawnError } = await import('./sessions');
     const runner = async () => {
-      throw new Error('Ghostty not found');
+      throw new Error('osascript not found');
     };
     await expect(openSessionInGhostty('abc', '/p', { runner })).rejects.toBeInstanceOf(SpawnError);
   });
