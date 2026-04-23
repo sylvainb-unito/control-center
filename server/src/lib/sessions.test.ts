@@ -584,6 +584,41 @@ describe('listRecentSessions', () => {
     expect(map).toEqual({ visible: false, 'hidden-1': true });
   });
 
+  test('auto-prunes hidden entries whose JSONL no longer exists on disk', async () => {
+    const { listRecentSessions } = await import('./sessions');
+    const removed: string[][] = [];
+    const currentHidden = new Set(['still-here', 'ghost']);
+
+    const deps = makeDeps({
+      globber: async () => ['/home/u/.claude/projects/proj-1/still-here.jsonl'],
+      stat: async () => ({ mtimeMs: new Date('2026-04-22T10:00:00Z').getTime(), size: 1 }),
+      parser: async (_stream, id) => ({
+        sessionId: id,
+        cwd: '/Users/u/Workspace/proj',
+        gitBranch: null,
+        customTitle: null,
+        startedAt: '2026-04-22T10:00:00Z',
+        lastActivityAt: '2026-04-22T10:00:00Z',
+        messageCount: 1,
+        primaryModel: null,
+        tokensByModel: {},
+      }),
+      hiddenStore: {
+        list: async () => new Set(currentHidden),
+        add: async () => new Set(currentHidden),
+        remove: async (ids) => {
+          removed.push(ids);
+          for (const id of ids) currentHidden.delete(id);
+          return new Set(currentHidden);
+        },
+      },
+    });
+
+    await listRecentSessions({ officeDays: 10, clearCache: true }, deps);
+    expect(removed).toEqual([['ghost']]);
+    expect([...currentHidden]).toEqual(['still-here']);
+  });
+
   test('skips files whose stat call rejects', async () => {
     const { listRecentSessions } = await import('./sessions');
     const deps = makeDeps({

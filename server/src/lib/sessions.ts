@@ -222,6 +222,16 @@ export async function listRecentSessions(
   const pattern = path.join(home, '.claude', 'projects', '*', '*.jsonl');
   const files = await globber(pattern);
 
+  // Prune hidden entries whose JSONL no longer exists on disk. Use the raw glob
+  // result (pre-cutoff) so we don't drop hides for sessions that are merely old —
+  // only for sessions whose files are truly gone.
+  const knownIds = new Set(files.map((f) => path.basename(f, '.jsonl')));
+  const orphaned = [...hidden].filter((id) => !knownIds.has(id));
+  if (orphaned.length > 0) {
+    await hiddenStore.remove(orphaned);
+    for (const id of orphaned) hidden.delete(id);
+  }
+
   const liveThreshold = now() - LIVE_THRESHOLD_MS;
   const surviving = new Set<string>();
   const rows: SessionSummary[] = [];

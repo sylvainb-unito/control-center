@@ -248,12 +248,12 @@ export const UI = () => {
           <span className={s.tokens}>{formatTokens(row.tokens)}</span>
           <button
             type="button"
-            className={s.rowAction}
+            className={[s.rowAction, row.isHidden ? s.rowUnhide : ''].filter(Boolean).join(' ')}
             onClick={toggleHidden}
-            title={row.isHidden ? 'Unhide' : 'Hide from panel'}
+            title={row.isHidden ? 'Restore this session to the list' : 'Hide from panel'}
             aria-label={row.isHidden ? 'Unhide session' : 'Hide session'}
           >
-            {row.isHidden ? '↩' : '✕'}
+            {row.isHidden ? 'unhide' : '✕'}
           </button>
         </div>
         {rowError[row.sessionId] && (

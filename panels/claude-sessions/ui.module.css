@@ -105,6 +105,21 @@
 .rowHidden .rowAction {
   opacity: 1;
 }
+.rowUnhide {
+  font-size: 11px;
+  font-family: "Orbitron", sans-serif;
+  text-transform: lowercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--fg-dim);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--cyan);
+}
+.rowUnhide:hover {
+  color: var(--bg-deep);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
 .panelToolbar {
   display: flex;
   align-items: center;
