@@ -65,6 +65,7 @@ describe('parseSessionFile', () => {
         sessionId: 'S1',
         cwd: '/Users/u/Workspace/proj',
         gitBranch: 'main',
+        customTitle: null,
       }),
       JSON.stringify({
         type: 'assistant',
@@ -105,6 +106,7 @@ describe('parseSessionFile', () => {
       sessionId: 'S1',
       cwd: '/Users/u/Workspace/proj',
       gitBranch: 'main',
+      customTitle: null,
       startedAt: '2026-04-22T10:00:00Z',
       lastActivityAt: '2026-04-22T10:05:45Z',
       messageCount: 4,
@@ -113,6 +115,38 @@ describe('parseSessionFile', () => {
         'claude-opus-4-7': { input: 300, output: 140, cacheRead: 25, cacheCreation: 10 },
       },
     });
+  });
+
+  test('captures customTitle from /rename (latest wins)', async () => {
+    const { parseSessionFile } = await import('./sessions');
+    const lines = [
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-04-22T10:00:00Z',
+        sessionId: 'S-rename',
+        cwd: '/Users/u/Workspace',
+      }),
+      JSON.stringify({ type: 'custom-title', customTitle: 'first-name', sessionId: 'S-rename' }),
+      JSON.stringify({ type: 'agent-name', agentName: 'first-name', sessionId: 'S-rename' }),
+      JSON.stringify({ type: 'custom-title', customTitle: 'final-name', sessionId: 'S-rename' }),
+      JSON.stringify({ type: 'agent-name', agentName: 'final-name', sessionId: 'S-rename' }),
+    ];
+    const result = await parseSessionFile(streamOf(...lines), 'S-rename');
+    expect(result.customTitle).toBe('final-name');
+  });
+
+  test('customTitle is null when no /rename event present', async () => {
+    const { parseSessionFile } = await import('./sessions');
+    const lines = [
+      JSON.stringify({
+        type: 'user',
+        timestamp: '2026-04-22T10:00:00Z',
+        sessionId: 'S-nochange',
+        cwd: '/p',
+      }),
+    ];
+    const result = await parseSessionFile(streamOf(...lines), 'S-nochange');
+    expect(result.customTitle).toBeNull();
   });
 
   test('tolerates trailing incomplete line (session still being written)', async () => {
@@ -244,6 +278,7 @@ describe('listRecentSessions', () => {
         sessionId: 'X',
         cwd: '/p',
         gitBranch: 'main',
+        customTitle: null,
         startedAt: '2026-04-22T10:00:00Z',
         lastActivityAt: '2026-04-22T10:00:00Z',
         messageCount: 0,
@@ -279,6 +314,7 @@ describe('listRecentSessions', () => {
         sessionId: 'S',
         cwd: '/Users/u/Workspace/proj',
         gitBranch: null,
+        customTitle: null,
         startedAt: '2026-04-21T10:00:00Z',
         lastActivityAt: '2026-04-21T10:00:00Z',
         messageCount: 1,
@@ -305,6 +341,7 @@ describe('listRecentSessions', () => {
           sessionId: 'aaa',
           cwd: '/Users/u/Workspace/proj',
           gitBranch: null,
+          customTitle: null,
           startedAt: '2026-04-21T10:00:00Z',
           lastActivityAt: '2026-04-21T10:00:00Z',
           messageCount: 1,
@@ -343,6 +380,7 @@ describe('listRecentSessions', () => {
         sessionId: id,
         cwd: '/Users/u/Workspace/proj',
         gitBranch: null,
+        customTitle: null,
         startedAt: '2026-04-22T11:00:00Z',
         lastActivityAt: '2026-04-22T11:00:00Z',
         messageCount: 1,
@@ -369,6 +407,7 @@ describe('listRecentSessions', () => {
         sessionId: id,
         cwd: '/Users/u/Workspace/proj',
         gitBranch: null,
+        customTitle: null,
         startedAt: id === 'late' ? '2026-04-22T11:00:00Z' : '2026-04-22T09:00:00Z',
         lastActivityAt: '2026-04-22T11:30:00Z',
         messageCount: 1,
@@ -389,6 +428,7 @@ describe('listRecentSessions', () => {
         sessionId: 'aaa',
         cwd: '/Users/u/Workspace/my-repo',
         gitBranch: 'feat/x',
+        customTitle: null,
         startedAt: '2026-04-22T09:30:00Z',
         lastActivityAt: '2026-04-22T10:42:00Z',
         messageCount: 7,
@@ -423,6 +463,7 @@ describe('listRecentSessions', () => {
           sessionId: 'evict',
           cwd: '/Users/u/Workspace/proj',
           gitBranch: null,
+          customTitle: null,
           startedAt: '2026-04-09T10:00:00Z',
           lastActivityAt: '2026-04-09T10:00:00Z',
           messageCount: 1,
@@ -461,6 +502,7 @@ describe('listRecentSessions', () => {
         sessionId: 'x',
         cwd: '/Users/u/Workspace/proj',
         gitBranch: null,
+        customTitle: null,
         startedAt: 'not-a-date',
         lastActivityAt: 'also-not-a-date',
         messageCount: 1,
@@ -483,6 +525,7 @@ describe('listRecentSessions', () => {
         sessionId: 'empty',
         cwd: '',
         gitBranch: null,
+        customTitle: null,
         startedAt: '2026-04-22T10:00:00Z',
         lastActivityAt: '2026-04-22T10:00:00Z',
         messageCount: 0,
@@ -509,6 +552,7 @@ describe('listRecentSessions', () => {
         sessionId: id,
         cwd: '/Users/u/Workspace/proj',
         gitBranch: null,
+        customTitle: null,
         startedAt: '2026-04-22T10:00:00Z',
         lastActivityAt: '2026-04-22T10:00:00Z',
         messageCount: 1,
@@ -522,7 +566,7 @@ describe('listRecentSessions', () => {
 });
 
 describe('openSessionInGhostty', () => {
-  test('invokes open with Ghostty + working-directory + resume command', async () => {
+  test('drives osascript to add a tab via Ghostty AppleScript', async () => {
     const { openSessionInGhostty } = await import('./sessions');
     const calls: Array<{ cmd: string; args: string[] }> = [];
     const runner = async (cmd: string, args: string[]) => {

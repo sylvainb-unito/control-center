@@ -21,6 +21,7 @@ export type ParsedSession = {
   sessionId: string;
   cwd: string;
   gitBranch: string | null;
+  customTitle: string | null;
   startedAt: string;
   lastActivityAt: string;
   messageCount: number;
@@ -40,6 +41,7 @@ type MaybeLine = {
   timestamp?: string;
   cwd?: string;
   gitBranch?: string;
+  customTitle?: string;
   message?: { model?: string; usage?: AssistantUsage };
 };
 
@@ -55,6 +57,7 @@ export async function parseSessionFile(
     sessionId,
     cwd: '',
     gitBranch: null,
+    customTitle: null,
     startedAt: '',
     lastActivityAt: '',
     messageCount: 0,
@@ -87,6 +90,11 @@ export async function parseSessionFile(
 
     if (obj.cwd && !result.cwd) result.cwd = obj.cwd;
     if (obj.gitBranch && !result.gitBranch) result.gitBranch = obj.gitBranch;
+    // `/rename` writes lines like {"type":"custom-title","customTitle":"..."}. Can
+    // fire multiple times per session — latest wins.
+    if (obj.type === 'custom-title' && typeof obj.customTitle === 'string') {
+      result.customTitle = obj.customTitle;
+    }
     if (obj.timestamp) {
       if (!result.startedAt) result.startedAt = obj.timestamp;
       result.lastActivityAt = obj.timestamp;
@@ -240,7 +248,7 @@ export async function listRecentSessions(
 
     rows.push({
       sessionId,
-      project: path.basename(parsed.cwd),
+      project: parsed.customTitle ?? path.basename(parsed.cwd),
       cwd: parsed.cwd,
       gitBranch: parsed.gitBranch,
       startedAt: parsed.startedAt,
