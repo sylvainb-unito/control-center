@@ -9,6 +9,29 @@ Local dev dashboard — worktrees, pull requests, tool shortcuts. Retrowave them
 - pnpm 9 (`corepack enable pnpm`)
 - `gh` CLI authenticated (`gh auth login`) — required for the Pull Requests panel
 
+## Make it yours
+
+This dashboard ships with the author's personal configuration. To adapt it to your setup, paste the following into Claude Code from the repo root:
+
+```
+Read README.md and CLAUDE.md, then walk me through adapting this
+dashboard to my environment. Ask before each change:
+
+1. Replace config/shortcuts.json with the tools I actually use, and
+   drop matching SVGs into config/logos/ (missing logos render as
+   neon 2-letter placeholders).
+2. Rename the launchd label in scripts/install-launchd.sh,
+   scripts/redeploy.sh, and scripts/uninstall-launchd.sh if you
+   don't want io.unito.control-center.
+3. Adjust the worktrees scan root if your repos don't live in
+   ~/Workspace (grep the server for the path).
+4. Decide whether to keep the personal cron scripts
+   (daily-journal.sh, weekly-retro.sh, monthly-retro.sh) — they
+   scan ~/Workspace and are not wired into any panel.
+```
+
+Ports (`5173` Vite, `7778` dev Hono, `7777` prod daemon) are easy to change later in `web/vite.config.ts` and `server/src/index.ts` if they conflict with something you already run.
+
 ## Dev
 
 ```bash
