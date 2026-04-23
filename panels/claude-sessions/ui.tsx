@@ -133,10 +133,12 @@ export const UI = () => {
   const qc = useQueryClient();
   const [showHidden, setShowHidden] = useState(false);
 
+  // Always fetch with includeHidden so the client always knows the hidden count —
+  // otherwise the "show hidden (N)" button is gated on data the server stripped out.
+  // Visual filtering happens on the client via `visibleRows` below.
   const { data, isLoading, error, refetch } = useQuery<ListResponse>({
-    queryKey: [...QK, { showHidden }],
-    queryFn: () =>
-      fetchJson<ListResponse>(`/api/claude-sessions${showHidden ? '?includeHidden=true' : ''}`),
+    queryKey: QK,
+    queryFn: () => fetchJson<ListResponse>('/api/claude-sessions?includeHidden=true'),
     staleTime: 30_000,
     refetchInterval: (q) => {
       const latest = q.state.data as ListResponse | undefined;
@@ -265,6 +267,7 @@ export const UI = () => {
 
   const mergedRows = data ? mergeByProject(data.sessions) : [];
   const hiddenCount = mergedRows.filter((row) => row.isHidden).length;
+  const visibleRows = showHidden ? mergedRows : mergedRows.filter((row) => !row.isHidden);
 
   return (
     <div className="panel">
@@ -297,8 +300,8 @@ export const UI = () => {
         {data &&
           data.sessions.length > 0 &&
           (() => {
-            const liveRows = mergedRows.filter((r) => r.isLive);
-            const otherRows = mergedRows.filter((r) => !r.isLive);
+            const liveRows = visibleRows.filter((r) => r.isLive);
+            const otherRows = visibleRows.filter((r) => !r.isLive);
             const showHeaders = liveRows.length > 0 && otherRows.length > 0;
             return (
               <>
