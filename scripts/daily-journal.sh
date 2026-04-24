@@ -27,7 +27,7 @@ for dir in "$HOME"/Workspace/*/; do
   [ -d "${dir}.git" ] || continue
   user_name=$(git -C "$dir" config user.name 2>/dev/null || echo "")
   [ -z "$user_name" ] && continue
-  commits=$(git -C "$dir" log --since="$SINCE" --author="$user_name" --oneline 2>/dev/null || true)
+  commits=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" --oneline 2>/dev/null || true)
   if [ -n "$commits" ]; then
     ACTIVE_REPOS="$ACTIVE_REPOS $(basename "$dir")"
   fi
@@ -53,22 +53,36 @@ fi
   for repo in $ACTIVE_REPOS; do
     dir="$HOME/Workspace/$repo"
     user_name=$(git -C "$dir" config user.name)
-    branch=$(git -C "$dir" branch --show-current 2>/dev/null || echo "(detached)")
-    commits=$(git -C "$dir" log --since="$SINCE" --author="$user_name" --pretty=format:"%h %s")
+    commits=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" \
+      --pretty=format:"%h%x1f%D%x1f%s")
     echo
-    echo "### $repo (\`$branch\`)"
-    while IFS= read -r line; do
-      hash="${line%% *}"
-      msg="${line#* }"
-      echo "- \`$hash\` $msg"
+    echo "### $repo"
+    while IFS=$'\x1f' read -r hash refs msg; do
+      branch=$(printf '%s' "$refs" | awk -F', *' '{
+        for (i=1; i<=NF; i++) {
+          r = $i; sub(/^HEAD -> /, "", r)
+          if (r != "" && r !~ /^tag: / && r !~ /^origin\//) { print r; exit }
+        }
+      }')
+      if [ -z "$branch" ]; then
+        branch=$(git -C "$dir" branch --contains "$hash" \
+          --format="%(refname:short)" 2>/dev/null | head -1 || true)
+      fi
+      [ -n "$branch" ] || branch="(unreachable)"
+      echo "- \`$hash\` [\`$branch\`] $msg"
     done <<< "$commits"
   done
   echo
   echo "## Repos & Branches Touched"
   for repo in $ACTIVE_REPOS; do
     dir="$HOME/Workspace/$repo"
-    branch=$(git -C "$dir" branch --show-current 2>/dev/null || echo "(detached)")
-    echo "- $repo: \`$branch\`"
+    user_name=$(git -C "$dir" config user.name)
+    branches=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" \
+      --pretty=format:"%H" | while read -r sha; do
+        git -C "$dir" branch --contains "$sha" \
+          --format="%(refname:short)" 2>/dev/null | head -1
+      done | sort -u | paste -sd ',' -)
+    echo "- $repo: \`${branches:-(unknown)}\`"
   done
 } > "$OUT"
 
