@@ -19,7 +19,7 @@ This redesign makes session JSONL transcripts the canonical source for all journ
 
 ## Non-goals
 
-- Redesigning the `/retro` skill. Retro reads daily journals and inherits the quality improvement automatically.
+- Broad redesign of the `/retro` skill. Retro reads daily journals and inherits the quality improvement automatically. One small, semantic-consistency patch to retro *is* in scope (see below) — the rest of retro is untouched.
 - Migrating existing `<date>-N.md` files or `source: cron-git` entries. They stay on disk. Retro already tolerates unknown frontmatter fields.
 - Wiring a `/clear` session-end hook. Useful, but orthogonal — can land after this redesign is proven.
 - Changing the `io.unito.daily-journal.plist` launchd schedule or shape. Only the script it invokes changes.
@@ -106,6 +106,22 @@ Becomes a tiny launchd bootstrapper. Responsibilities:
 
 Unchanged.
 
+### `skills/retro/SKILL.md` (agent-cli-toolkit — minor patch)
+
+One targeted edit, scoped to keeping the `sessions:` count semantically honest across the transition.
+
+Today retro's weekly frontmatter counts *daily-journal files*:
+
+```yaml
+sessions: <count of daily journals>
+```
+
+Under the current design a heavy day produced 3-4 numbered files, so this number tracked distinct Claude sessions only loosely. Under the new design every day produces exactly one file, so naively counting files would make weeks look like they contained fewer sessions than they really did.
+
+Change retro to compute `sessions:` by summing the `sessions:` frontmatter field across each daily journal it reads for the week, with a fallback of `1` for legacy journals that don't carry that field (old `source: cron-git`, `source: session`, `source: git` entries). Same rule for the monthly retro's `total_sessions:` — sum across weeks, which it already does, so no further change there.
+
+Nothing else in retro changes. Its gather/write logic, body sections, and monthly roll-up stay as-is.
+
 ## Frontmatter & output format
 
 ```yaml
@@ -166,6 +182,6 @@ Drops the `session: N` counter from the current frontmatter — no more numbered
 ## Rollout
 
 1. Ship agent-cli-toolkit PR #126 (current `add-journal-retro-skills` branch with the `--branches` fix). Gives everyone the safety-net improvement immediately.
-2. Land this redesign as a follow-up PR in agent-cli-toolkit (new `extract.sh`, rewritten `SKILL.md`) stacked on `add-journal-retro-skills` or rebased onto `main` after #126 merges.
+2. Land this redesign as a follow-up PR in agent-cli-toolkit covering all three changes in one PR — new `extract.sh`, rewritten `journal/SKILL.md`, and the `retro/SKILL.md` `sessions:` semantic patch. Stack on `add-journal-retro-skills` or rebase onto `main` after #126 merges.
 3. Land the control-center change (`scripts/daily-journal.sh` rewrite + this spec) as a PR against `main`.
 4. After both PRs merge, run one manual `/journal` invocation to produce today's journal from the new path; verify output matches expectations; leave launchd to take over the next evening.
