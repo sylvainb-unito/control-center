@@ -59,7 +59,7 @@ Both paths land in the same "condensed signal → synthesize → write" flow.
 3. **Split cross-day.** `extract.sh --date <YYYY-MM-DD>` filters entries by per-line timestamp. A session opened at 23:30 and continuing past midnight contributes to both days' journals with its corresponding slice.
 4. **Filter trivial sessions.** Skip sessions with fewer than 3 user messages *and* 0 successful tool calls. Catches "opened Claude, said hi, /clear", `/config` drive-bys, misclicks.
 5. **Synthesize.** The model reads the concatenated extract and produces the journal with Summary / Completed / In Progress / Key Decisions / Blockers / Repos Touched. Key Decisions and Blockers are always populated now — no longer conditional on source type.
-6. **Write.** Single file `~/.claude/journals/daily/<date>.md`. Overwrites any prior regeneration of the same date.
+6. **Emit.** Skill prints the journal markdown to stdout between sentinel lines `<<<JOURNAL_BEGIN:<date>>>>` … `<<<JOURNAL_END>>>`. The bootstrapper captures stdout, slices between sentinels, and writes `~/.claude/journals/daily/<date>.md` itself. Keeping the write out of claude lets the bootstrapper grant only narrow `Read(~/.claude/projects/**)` + `Bash(bash extract.sh:*)` + `Bash(jq:*)` permissions via `--settings` instead of `bypassPermissions`. Live `/journal` sees the sentinel-wrapped output in chat; the bootstrapper (re-runnable any time) is the canonical writer.
 
 ## Components
 
@@ -95,12 +95,13 @@ Target compression: ~20× on a typical day (20 MB raw → ~1 MB signal, well wit
 
 ### `control-center/scripts/daily-journal.sh` (control-center — rewrite)
 
-Becomes a tiny launchd bootstrapper. Responsibilities:
+Becomes a launchd bootstrapper that wraps the skill. Responsibilities:
 
 1. Augment PATH so `claude` resolves (same shape as the AI News panel's spawn).
-2. Invoke `claude -p "/journal"` with a bounded timeout.
-3. On non-zero exit: write `~/.claude/journals/daily/<date>.failed` containing exit code + last 20 lines of stderr. Exit 0 from the script itself so launchd doesn't retry-storm.
-4. Log to `~/Library/Logs/daily-journal.log` as today.
+2. Invoke `claude -p --settings <inline-allowlist-JSON> --add-dir ~/.claude/projects "/journal"` with a bounded timeout, capturing stdout and stderr to temp files. The `--settings` block narrowly allows `Read(~/.claude/projects/**)`, `Bash(bash ~/.claude/skills/journal/extract.sh:*)`, `Bash(jq:*)`, `Bash(find ~/.claude/projects:*)`, `Bash(grep:*)` — and nothing else. No `bypassPermissions`.
+3. Extract the slice of stdout between `<<<JOURNAL_BEGIN:<date>>>>` and `<<<JOURNAL_END>>>` with awk; write it to `~/.claude/journals/daily/<date>.md`. This write happens *outside* claude, in plain bash, so it never touches the sensitive-dir guard on `~/.claude/`.
+4. On any failure (non-zero exit, missing sentinels, empty content) write `~/.claude/journals/daily/<date>.failed` containing exit code + last 20 lines of stderr + a short reason. Exit 0 from the script itself so launchd doesn't retry-storm.
+5. Log to `~/Library/Logs/daily-journal.log` as today.
 
 ### `~/Library/LaunchAgents/io.unito.daily-journal.plist`
 
@@ -148,11 +149,12 @@ Drops the `session: N` counter from the current frontmatter — no more numbered
 
 ## Failure & edge cases
 
-- **`claude -p` fails at 23:00** → bootstrapper writes `<date>.failed` marker with exit code + stderr tail. No silent-degradation fallback. Failures are surfaced, not hidden behind a lower-fidelity journal.
-- **No session activity on date** → valid `<date>.md` with body `No session activity on <date>.` This is real data, not a failure.
+- **`claude -p` fails at 23:00** → bootstrapper writes `<date>.failed` marker with exit code + stderr tail + reason. No silent-degradation fallback. Failures are surfaced, not hidden behind a lower-fidelity journal.
+- **Sentinels missing from stdout** (skill crashed mid-emit, prompted without producing output) → bootstrapper writes `<date>.failed` with reason `sentinels missing or empty content between them`. Same surface as any other failure.
+- **No session activity on date** → skill still emits sentinels around a one-line body; bootstrapper writes a tiny but valid `<date>.md`.
 - **Partial JSONL read failure** (malformed line, permission issue on one file) → `extract.sh` emits a warning to stderr, skips that file, continues. A partial journal is better than a missing one.
 - **Session active across cron fire** → cron reads the JSONL up to the writer's current position; the next day's run picks up the tail. No coordination needed between cron and live Claude.
-- **Idempotency** — re-running `/journal` for the same date (e.g. manual regeneration after the cron already ran) overwrites with the latest full-day view.
+- **Idempotency** — re-running the bootstrapper for the same date overwrites with the latest full-day view. Manual `/journal` in a live session prints but does not save; save only happens via the bootstrapper.
 
 ## Scope decisions
 
