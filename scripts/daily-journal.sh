@@ -48,6 +48,11 @@ fail_marker() {
       echo "stderr_tail:"
       tail -20 "$STDERR_LOG"
     fi
+    if [ -s "$STDOUT_LOG" ]; then
+      local preserved="$JOURNAL_DIR/${DATE}.stdout.log"
+      cp "$STDOUT_LOG" "$preserved"
+      echo "stdout_preserved_at: $preserved"
+    fi
   } > "$FAILED_MARKER"
 }
 
@@ -76,12 +81,14 @@ EOF
 set +e
 # `--` ends option parsing so /journal lands as the positional prompt.
 # Without it, --add-dir is variadic and swallows /journal as a second directory.
-# JOURNAL_SCOPE=all flips the skill into aggregate mode (vs. per-session live).
-JOURNAL_SCOPE=all timeout "$TIMEOUT_SECS" claude -p \
+# `/journal all` flips the skill into aggregate mode (vs. per-session live
+# which is the default). Positional argument is deterministic — env vars
+# are unreliable through claude -p's prompt handoff.
+timeout "$TIMEOUT_SECS" claude -p \
   --settings "$ALLOW_SETTINGS" \
   --add-dir "$HOME/.claude/projects" \
   -- \
-  "/journal" \
+  "/journal all" \
   > "$STDOUT_LOG" 2> "$STDERR_LOG"
 EXIT_CODE=$?
 set -e
