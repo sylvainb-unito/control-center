@@ -1,89 +1,58 @@
 #!/bin/bash
-# Daily journal safety net. Writes a markdown journal at
-# ~/.claude/journals/daily/<DATE>.md from today's git activity across
-# ~/Workspace/*, mirroring the journal skill's "git scanning mode".
-# Skips if any journal already exists for today (manual /journal wins).
+# Daily journal safety net. Invokes `claude -p "/journal"` once per day under launchd.
+# The journal skill itself reads ~/.claude/projects/**/*.jsonl and produces the
+# daily entry at ~/.claude/journals/daily/<DATE>.md.
 #
-# Wired up via ~/Library/LaunchAgents/io.unito.daily-journal.plist
-# at 23:00 daily; launchd catches up on wake if the slot was missed.
+# On non-zero exit from claude, writes a <DATE>.failed marker with the exit code
+# and stderr tail, then returns 0 so launchd doesn't retry-storm. Failures are
+# surfaced via the marker; there is deliberately no lower-fidelity fallback.
+#
+# Wired up via ~/Library/LaunchAgents/io.unito.daily-journal.plist at 23:00 daily.
 
 set -euo pipefail
 
 DATE=$(date +%Y-%m-%d)
 JOURNAL_DIR="$HOME/.claude/journals/daily"
-OUT="$JOURNAL_DIR/$DATE.md"
-
-if compgen -G "$JOURNAL_DIR/${DATE}*.md" > /dev/null; then
-  echo "Journal already exists for $DATE — skipping."
-  exit 0
-fi
+FAILED_MARKER="$JOURNAL_DIR/${DATE}.failed"
+STDERR_LOG=$(mktemp -t daily-journal-stderr.XXXXXX)
+TIMEOUT_SECS="${JOURNAL_TIMEOUT_SECS:-600}"
 
 mkdir -p "$JOURNAL_DIR"
 
-SINCE="$DATE 00:00"
+# Augment PATH so `claude` resolves under launchd (same pattern as the AI News
+# panel's spawn). /opt/homebrew covers Apple Silicon; /usr/local covers Intel
+# and npm-global; ~/.local/bin for user-installed.
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-ACTIVE_REPOS=""
-for dir in "$HOME"/Workspace/*/; do
-  [ -d "${dir}.git" ] || continue
-  user_name=$(git -C "$dir" config user.name 2>/dev/null || echo "")
-  [ -z "$user_name" ] && continue
-  commits=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" --oneline 2>/dev/null || true)
-  if [ -n "$commits" ]; then
-    ACTIVE_REPOS="$ACTIVE_REPOS $(basename "$dir")"
-  fi
-done
-ACTIVE_REPOS=$(echo "$ACTIVE_REPOS" | xargs)
-
-if [ -z "$ACTIVE_REPOS" ]; then
-  echo "No git activity today — skipping journal."
+if ! command -v claude >/dev/null 2>&1; then
+  {
+    echo "date: $DATE"
+    echo "exit_code: 127"
+    echo "reason: claude binary not found on PATH"
+    echo "PATH=$PATH"
+  } > "$FAILED_MARKER"
+  rm -f "$STDERR_LOG"
   exit 0
 fi
 
-{
-  echo "---"
-  echo "date: $DATE"
-  echo "session: 1"
-  echo "source: cron-git"
-  echo "repos: [$(echo "$ACTIVE_REPOS" | tr ' ' ',' | sed 's/,/, /g')]"
-  echo "started: unknown"
-  echo "ended: unknown"
-  echo "---"
-  echo
-  echo "## Completed"
-  for repo in $ACTIVE_REPOS; do
-    dir="$HOME/Workspace/$repo"
-    user_name=$(git -C "$dir" config user.name)
-    commits=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" \
-      --pretty=format:"%h%x1f%D%x1f%s")
-    echo
-    echo "### $repo"
-    while IFS=$'\x1f' read -r hash refs msg; do
-      branch=$(printf '%s' "$refs" | awk -F', *' '{
-        for (i=1; i<=NF; i++) {
-          r = $i; sub(/^HEAD -> /, "", r)
-          if (r != "" && r !~ /^tag: / && r !~ /^origin\//) { print r; exit }
-        }
-      }')
-      if [ -z "$branch" ]; then
-        branch=$(git -C "$dir" branch --contains "$hash" \
-          --format="%(refname:short)" 2>/dev/null | head -1 || true)
-      fi
-      [ -n "$branch" ] || branch="(unreachable)"
-      echo "- \`$hash\` [\`$branch\`] $msg"
-    done <<< "$commits"
-  done
-  echo
-  echo "## Repos & Branches Touched"
-  for repo in $ACTIVE_REPOS; do
-    dir="$HOME/Workspace/$repo"
-    user_name=$(git -C "$dir" config user.name)
-    branches=$(git -C "$dir" log --branches --since="$SINCE" --author="$user_name" \
-      --pretty=format:"%H" | while read -r sha; do
-        git -C "$dir" branch --contains "$sha" \
-          --format="%(refname:short)" 2>/dev/null | head -1
-      done | sort -u | paste -sd ',' -)
-    echo "- $repo: \`${branches:-(unknown)}\`"
-  done
-} > "$OUT"
+# Run claude -p with a hard timeout. Capture stderr for the failure marker.
+set +e
+( timeout "$TIMEOUT_SECS" claude -p "/journal" ) 2> "$STDERR_LOG"
+EXIT_CODE=$?
+set -e
 
-echo "Wrote $OUT"
+if [ "$EXIT_CODE" -eq 0 ]; then
+  rm -f "$FAILED_MARKER" "$STDERR_LOG"
+  exit 0
+fi
+
+# Non-zero: write a failure marker with the exit code and stderr tail.
+{
+  echo "date: $DATE"
+  echo "exit_code: $EXIT_CODE"
+  echo "stderr_tail:"
+  tail -20 "$STDERR_LOG" 2>/dev/null || true
+} > "$FAILED_MARKER"
+
+rm -f "$STDERR_LOG"
+exit 0
