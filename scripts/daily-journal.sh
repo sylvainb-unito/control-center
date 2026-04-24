@@ -76,7 +76,8 @@ EOF
 set +e
 # `--` ends option parsing so /journal lands as the positional prompt.
 # Without it, --add-dir is variadic and swallows /journal as a second directory.
-timeout "$TIMEOUT_SECS" claude -p \
+# JOURNAL_SCOPE=all flips the skill into aggregate mode (vs. per-session live).
+JOURNAL_SCOPE=all timeout "$TIMEOUT_SECS" claude -p \
   --settings "$ALLOW_SETTINGS" \
   --add-dir "$HOME/.claude/projects" \
   -- \
@@ -104,5 +105,10 @@ if [ -z "$JOURNAL" ]; then
 fi
 
 printf '%s\n' "$JOURNAL" > "$OUT"
+
+# Consolidate: the aggregate subsumes any per-session files for the same date.
+# Glob `${DATE}-*.md` matches `2026-04-24-<short>.md` but not `2026-04-24.md`.
+rm -f "$JOURNAL_DIR/${DATE}"-*.md
+
 rm -f "$FAILED_MARKER"
 exit 0
